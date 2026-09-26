@@ -1,18 +1,51 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
 public class PlayerController : MonoBehaviour
 {
     [SerializeField] private LayerMask groundLayer;
+    [SerializeField] private LayerMask lavaLayer;
     [SerializeField] private Transform groundCheckPoint;
     [SerializeField] private float groundCheckRadius;
     [SerializeField] private float jumpVelocity;
     [SerializeField] private float walkSpeed;
 
+    //Singleton pattern
+    private static PlayerController instance;
+
     private bool isGrounded;
     private ContactFilter2D contactFilter;
 
     Rigidbody2D rb;
+    private void Awake()
+    {
+        instance = this;
+    }
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        GameObject spawnPoint = GameObject.FindWithTag("SpawnPoint");
+        if (spawnPoint != null)
+        {
+            transform.position = spawnPoint.transform.position;
+            transform.rotation = spawnPoint.transform.rotation;
+        }
+        else
+        {
+            transform.position = Vector3.zero;
+            Debug.LogWarning($"No GameObject with tag 'SpawnPoint' found in {scene.name}. Resetting to Vector3.zero.");
+        }
+    }
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -46,6 +79,14 @@ public class PlayerController : MonoBehaviour
             horizontalVelocity -= walkSpeed;
         }
         rb.linearVelocity = new Vector2(horizontalVelocity, rb.linearVelocity.y);
+    }
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        if ((lavaLayer.value & (1 << other.gameObject.layer)) > 0)
+        {
+            GameManager.instance.GameOver();
+        }
     }
 
     private void OnDrawGizmosSelected()
