@@ -29,7 +29,7 @@ public class JamAtmosphere : MonoBehaviour
 
     Transform playerLight, ballLight, playerHalo, ballHalo;
     Transform screenRoot;
-    SpriteRenderer vignette, fog, fade;
+    SpriteRenderer vignette, fog, fade, bottomDark;
     ParticleSystem dust, puffs;
     Material particleMat;
 
@@ -136,6 +136,10 @@ public class JamAtmosphere : MonoBehaviour
         var vigSprite = Sprite.Create(VignetteTex(128), new Rect(0, 0, 128, 128), new Vector2(0.5f, 0.5f), 128f);
         vignette = MakeSprite("Vignette", vigSprite, cfg.unlitSprite, 90, new Color(0.01f, 0.012f, 0.015f, 0.9f));
         vignette.transform.SetParent(screenRoot, false);
+        // Darken the lower quarter of the frame so floor masses and voids sink into shadow.
+        var bottomSprite = Sprite.Create(GradientTex(false), new Rect(0, 0, 4, 128), new Vector2(0.5f, 0f), 128f);
+        bottomDark = MakeSprite("BottomDark", bottomSprite, cfg.unlitSprite, 85, new Color(0.01f, 0.012f, 0.015f, 0.85f));
+        bottomDark.transform.SetParent(screenRoot, false);
         fade = MakeSprite("Fade", WhiteSprite(), cfg.unlitSprite, 100, Color.black);
         fade.transform.SetParent(screenRoot, false);
     }
@@ -178,8 +182,18 @@ public class JamAtmosphere : MonoBehaviour
             SpawnEmbers(b);
         }
 
+        foreach (var st in FindObjectsByType<StalactiteController>(FindObjectsSortMode.None))
+        {
+            var r = st.GetComponentInChildren<Renderer>();
+            var l = MakeLight("StalactiteGlow", Orange, 1.3f, 0.3f, 2.6f, 0.6f);
+            l.transform.SetParent(st.transform, true);
+            l.transform.position = r != null ? r.bounds.center : st.transform.position;
+        }
+
         foreach (var go in GameObjectsWithTag("Finish"))
         {
+            // Keep the exit behind player (2) and ball (1) so the ball never vanishes behind the door.
+            foreach (var fsr in go.GetComponentsInChildren<SpriteRenderer>()) fsr.sortingOrder = Mathf.Min(fsr.sortingOrder, 0);
             var r = go.GetComponentInChildren<Renderer>();
             Vector3 c = r != null ? r.bounds.center : go.transform.position;
             var l = MakeLight("ExitGlow", new Color(0.95f, 0.97f, 1f), 1.0f, 1f, 7f, 0.6f);
@@ -295,7 +309,7 @@ public class JamAtmosphere : MonoBehaviour
         if (ball == null || cfg.chainLinkA == null) return;
         var go = new GameObject("JamChain");
         go.transform.SetParent(transform, false);
-        go.AddComponent<JamChain>().Init(player, ball, cfg.chainLinkA, cfg.chainLinkB, cfg.litSprite);
+        go.AddComponent<JamChain>().Init(player, ball, cfg.chainLinkA, cfg.chainLinkB, cfg.litSprite, cfg.unlitSprite);
     }
 
     // ---------------------------------------------------------------- juice API
@@ -383,6 +397,8 @@ public class JamAtmosphere : MonoBehaviour
         float h = cam.orthographicSize * 2f, w = h * Mathf.Max(cam.aspect, 16f / 9f);
         screenRoot.position = new Vector3(cp.x, cp.y, 0);
         vignette.transform.localScale = new Vector3(w * 1.02f, h * 1.02f, 1);
+        bottomDark.transform.localPosition = new Vector3(0, -h * 0.5f - 0.1f, 0);
+        bottomDark.transform.localScale = new Vector3(w * 1.1f, h * 0.32f, 1);
         fade.transform.localScale = new Vector3(w * 2f, h * 1.5f, 1);
 
         float dt = Mathf.Min(Time.unscaledDeltaTime, 0.1f);
