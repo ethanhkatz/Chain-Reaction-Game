@@ -168,6 +168,17 @@ public class JamAtmosphere : MonoBehaviour
             var br = ball.GetComponentInChildren<SpriteRenderer>();
             bh.transform.localScale = Vector3.one * (br != null ? br.bounds.size.x * 2.1f : 3f);
             ballHalo = bh.transform;
+            if (br != null)
+            {
+                // Ball draws above chain (4/3) and halo; a solid disc behind it keeps its body opaque.
+                br.sortingOrder = 6;
+                var disc = MakeSprite("BallBody", Sprite.Create(HardDisc(64), new Rect(0, 0, 64, 64), new Vector2(0.5f, 0.5f), 64f),
+                    cfg.litSprite, 5, new Color(0.2f, 0.22f, 0.23f, 1f));
+                disc.transform.SetParent(br.transform, false);
+                disc.transform.localPosition = Vector3.zero;
+                float d = br.sprite != null ? Mathf.Min(br.sprite.bounds.size.x, br.sprite.bounds.size.y) * 0.9f : 1f;
+                disc.transform.localScale = Vector3.one * d;
+            }
         }
 
         foreach (var r in FindObjectsByType<Renderer>(FindObjectsSortMode.None))
@@ -463,6 +474,20 @@ public class JamAtmosphere : MonoBehaviour
                 float d = Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), new Vector2(n / 2f, n / 2f)) / (n / 2f);
                 float a = Mathf.Clamp01(1f - d); a *= a;
                 px[y * n + x] = new Color(1, 1, 1, a);
+            }
+        t.SetPixels32(px); t.Apply();
+        return t;
+    }
+
+    static Texture2D HardDisc(int n)
+    {
+        var t = NewTex(n, n);
+        var px = new Color32[n * n];
+        for (int y = 0; y < n; y++)
+            for (int x = 0; x < n; x++)
+            {
+                float d = Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), new Vector2(n / 2f, n / 2f));
+                px[y * n + x] = new Color(1, 1, 1, Mathf.Clamp01(n / 2f - d));
             }
         t.SetPixels32(px); t.Apply();
         return t;
