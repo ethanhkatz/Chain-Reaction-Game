@@ -36,29 +36,6 @@ public class PlayerController : MonoBehaviour
     {
         instance = this;
     }
-    private void OnEnable()
-    {
-        SceneManager.sceneLoaded += OnSceneLoaded;
-    }
-
-    private void OnDisable()
-    {
-        SceneManager.sceneLoaded -= OnSceneLoaded;
-    }
-    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
-    {
-        GameObject spawnPoint = GameObject.FindWithTag("SpawnPoint");
-        if (spawnPoint != null)
-        {
-            transform.position = spawnPoint.transform.position;
-            transform.rotation = spawnPoint.transform.rotation;
-        }
-        else
-        {
-            transform.position = Vector3.zero;
-            Debug.LogWarning($"No GameObject with tag 'SpawnPoint' found in {scene.name}. Resetting to Vector3.zero.");
-        }
-    }
 
     void Start()
     {

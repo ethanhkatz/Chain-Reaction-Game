@@ -4,7 +4,6 @@
 TagManager:
   serializedVersion: 3
   tags:
-  - SpawnPoint
   - Ball
   layers:
   - Default
@@ -22,9 +21,6 @@ TagManager:
   - Player
   - Ball
   - Rock
-  - 
-  - 
-  - 
   - 
   - 
   - 

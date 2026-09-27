@@ -169,7 +169,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   groundLayer:
     serializedVersion: 2
-    m_Bits: 1344
+    m_Bits: 320
+  lavaLayer:
+    serializedVersion: 2
+    m_Bits: 0
   groundCheckPoint: {fileID: 1045998688394655941}
   groundCheckSize: {x: 1.4, y: 0.2}
   jumpVelocity: 15
