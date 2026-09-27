@@ -14,8 +14,17 @@ public static class ShellUI
     {
         var go = new GameObject(name, typeof(RectTransform));
         var c = go.AddComponent<Canvas>();
-        c.renderMode = RenderMode.ScreenSpaceOverlay;
-        c.sortingOrder = sortingOrder;
+        // Camera-space (in front of everything) when there is a camera, so screenshots/captures include it.
+        var cam = Camera.main;
+        if (cam != null)
+        {
+            c.renderMode = RenderMode.ScreenSpaceCamera;
+            c.worldCamera = cam;
+            c.planeDistance = Mathf.Max(cam.nearClipPlane + 0.05f, 0.5f);
+        }
+        else c.renderMode = RenderMode.ScreenSpaceOverlay;
+        c.sortingLayerName = "Default";
+        c.sortingOrder = sortingOrder + 1000;
         var s = go.AddComponent<CanvasScaler>();
         s.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         s.referenceResolution = new Vector2(1920, 1080);

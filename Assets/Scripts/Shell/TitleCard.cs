@@ -32,7 +32,7 @@ public class TitleCard : MonoBehaviour
 
     void Update()
     {
-        t += Time.unscaledDeltaTime;
+        t += Mathf.Min(Time.unscaledDeltaTime, 0.05f); // ignore load hitches
         if (t < In) group.alpha = Mathf.SmoothStep(0, 1, t / In);
         else if (t < In + Hold) group.alpha = 1f;
         else if (t < In + Hold + Out) group.alpha = Mathf.SmoothStep(1, 0, (t - In - Hold) / Out);

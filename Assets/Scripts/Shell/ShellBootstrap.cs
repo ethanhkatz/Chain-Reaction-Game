@@ -23,12 +23,24 @@ public static class ShellBootstrap
         GameManager.LevelClearRaised += OnLevelClear;
     }
 
-    static void OnGameOver() => ShellAudio.Play(ShellAudio.Sfx.GameOver, 0.7f, 0f);
-    static void OnLevelClear() => ShellAudio.Play(ShellAudio.Sfx.Clear, 0.7f, 0f);
+    // In the editor the first scene can already be loaded before sceneLoaded is hooked; catch it here.
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    static void AfterFirstScene()
+    {
+        var s = SceneManager.GetActiveScene();
+        if (s != lastHandled) OnSceneLoaded(s, LoadSceneMode.Single);
+    }
+
+    static Scene lastHandled;
+
+    static void OnGameOver() => ShellAudio.PlayGameOver();
+    static void OnLevelClear() => ShellAudio.PlayLevelClear();
 
     static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         if (mode != LoadSceneMode.Single) return;
+        if (scene == lastHandled) return;
+        lastHandled = scene;
         ShellAudio.Instance?.RefreshListener();
         HighContrast.ResetCache();
 
@@ -37,7 +49,9 @@ public static class ShellBootstrap
 
         var gm = Object.FindAnyObjectByType<GameManager>();
         bool isLevel = gm != null;
-        ShellAudio.SetDrone(true);
+        bool finale = scene.name == "EndingScene" || Regex.IsMatch(scene.name, @"^Level\s*5$", RegexOptions.IgnoreCase);
+        ShellAudio.SetFootsteps(false);
+        ShellAudio.SetMusic(finale ? ShellAudio.Music.Ending : isLevel ? ShellAudio.Music.Level : ShellAudio.Music.Menu);
         if (!isLevel) return;
 
         Time.timeScale = ShellSettings.PlayTimeScale;
