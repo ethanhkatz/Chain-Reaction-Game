@@ -1,33 +1,15 @@
-// // using UnityEngine;
-
-// // public class TippyRockController : MonoBehaviour
-// // {
-// //     private Rigidbody2D rb;
-// //     // Start is called once before the first execution of Update after the MonoBehaviour is created
-// //     void Start()
-// //     {
-// //         rb = GetComponent<Rigidbody2D>();
-// //     }
-
-// //     // Update is called once per frame
-// //     void Update()
-// //     {
-        
-// //     }
-// // }
 // using UnityEngine;
 
 // public class TippyRockController : MonoBehaviour
 // {
 //     private Rigidbody2D rb;
 //     private bool isLocked = false;
-//     private bool ballHasHit = false;
+    
+//     [HideInInspector] public bool ballHasHit = false; 
 
 //     void Start()
 //     {
 //         rb = GetComponent<Rigidbody2D>();
-        
-//         // Start out frozen horizontally so the player can't push it on startup
 //         rb.constraints = RigidbodyConstraints2D.FreezePositionX | RigidbodyConstraints2D.FreezeRotation;
 //     }
 
@@ -45,36 +27,48 @@
 
 //     private void OnCollisionEnter2D(Collision2D collision)
 //     {
-//         // ONLY unfreeze if the colliding object has the "Ball" tag
+//         // Condition 1: Hit by the Ball
 //         if (collision.gameObject.CompareTag("Ball"))
 //         {
-//             ballHasHit = true;
-//             rb.constraints = RigidbodyConstraints2D.None; // Free all physics
+//             UnfreezeRock();
+//             return;
 //         }
+
+//         // Condition 2: Hit by another TippyRock
+//         TippyRockController otherRock = collision.gameObject.GetComponent<TippyRockController>();
+//         if (otherRock != null && otherRock.ballHasHit)
+//         {
+//             UnfreezeRock();
+//         }
+//     }
+
+//     private void UnfreezeRock()
+//     {
+//         ballHasHit = true;
+//         rb.constraints = RigidbodyConstraints2D.None; // Free all physics
 //     }
 // }
 using UnityEngine;
 
-public class TippyRockController : MonoBehaviour
+public class TippyRockController : MonoBehaviour 
 {
     private Rigidbody2D rb;
     private bool isLocked = false;
+    [HideInInspector] public bool ballHasHit = false;
     
-    // Changing this to public (or exposing a property) allows other rocks to read its state
-    [HideInInspector] public bool ballHasHit = false; 
+    [Header("Tip Settings")]
+    [SerializeField] private float immediateTipSpeed = -5f; // Negative tips right, Positive tips left
 
-    void Start()
+    void Start() 
     {
         rb = GetComponent<Rigidbody2D>();
-        // Start out frozen horizontally so the player can't push it on startup
         rb.constraints = RigidbodyConstraints2D.FreezePositionX | RigidbodyConstraints2D.FreezeRotation;
     }
 
-    void Update()
+    void Update() 
     {
-        // Once the rock hits the floor and stops moving down, lock it vertically too
-        // This stops the player's downward weight from glitching or moving the rock
-        if (!isLocked && !ballHasHit && Mathf.Abs(rb.linearVelocity.y) < 0.01f)
+        // Lock the rock if it hits the ground before the ball touches it
+        if (!isLocked && !ballHasHit && Mathf.Abs(rb.linearVelocity.y) < 0.01f) 
         {
             rb.linearVelocity = Vector2.zero;
             rb.constraints = RigidbodyConstraints2D.FreezeAll;
@@ -82,26 +76,33 @@ public class TippyRockController : MonoBehaviour
         }
     }
 
-    private void OnCollisionEnter2D(Collision2D collision)
+    private void OnCollisionEnter2D(Collision2D collision) 
     {
-        // Condition 1: Hit by the Ball
-        if (collision.gameObject.CompareTag("Ball"))
+        if (collision.gameObject.CompareTag("Ball")) 
         {
-            UnfreezeRock();
+            // Calculate hit side: negative if ball is to the left, positive if to the right
+            float direction = collision.transform.position.x < transform.position.x ? 1f : -1f;
+            UnfreezeRock(direction);
             return;
         }
 
-        // Condition 2: Hit by another TippyRock
         TippyRockController otherRock = collision.gameObject.GetComponent<TippyRockController>();
-        if (otherRock != null && otherRock.ballHasHit)
+        if (otherRock != null && otherRock.ballHasHit) 
         {
-            UnfreezeRock();
+            // For domino chain reactions, tip in the same direction as the falling rock
+            float direction = Mathf.Sign(otherRock.rb.angularVelocity);
+            UnfreezeRock(direction);
         }
     }
 
-    private void UnfreezeRock()
+    private void UnfreezeRock(float directionSign) 
     {
+        if (ballHasHit) return; 
         ballHasHit = true;
+        
         rb.constraints = RigidbodyConstraints2D.None; // Free all physics
+        
+        // Force the rotation speed directly so it breaks its balance immediately
+        rb.angularVelocity = Mathf.Abs(immediateTipSpeed) * directionSign;
     }
 }
