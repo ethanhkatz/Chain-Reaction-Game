@@ -13,9 +13,11 @@ public class WardenBoss : MonoBehaviour
 
     [Header("Parts")]
     public WardenCore[] cores;
+    public GameObject[] setups;     // setups[i] delivers the payload into cores[i]; armed one at a time
+    public int attacksBeforeRearm = 2;
     public SpriteRenderer[] pips;
     public Transform body;          // everything that sinks when it dies
-    public Transform tower;         // the part that rears up for a slam
+    public Transform tower;         // the arm pivot that swings up for a slam
     public SpriteRenderer eye;
     public SpriteRenderer bodyArt;
     public Sprite defeatedSprite;   // the collapsed wreck left behind
@@ -37,14 +39,15 @@ public class WardenBoss : MonoBehaviour
     static readonly Color PipOff = new Color(0.16f, 0.17f, 0.19f);
 
     // per phase (index = cores already broken)
-    static readonly float[] Cooldown = { 2.6f, 1.9f, 1.3f };
-    static readonly float[] Telegraph = { 1.2f, 0.95f, 0.75f };
+    static readonly float[] Cooldown = { 2.4f, 2.0f, 1.6f };
+    static readonly float[] Telegraph = { 1.2f, 1.0f, 0.85f };
     static readonly int[] Shards = { 2, 3, 4 };
-    static readonly float[] SweepSpeed = { 9f, 12f, 15f };
+    static readonly float[] SweepSpeed = { 9f, 11f, 13f };
 
     PlayerController player;
     int broken;
     bool awake, dead, staggered;
+    int armedIndex = -1, attacksUntilArm = -1;
     Color eyeBase;
     readonly List<GameObject> hazards = new List<GameObject>();
     int lavaLayer;
@@ -53,6 +56,8 @@ public class WardenBoss : MonoBehaviour
     {
         Instance = this;
         lavaLayer = LayerMask.NameToLayer("Lava");
+        // test hook for scripted playtests that can't dodge: attacks still run but don't kill
+        if (System.Environment.GetEnvironmentVariable("JAM_WARDEN_HARMLESS") == "1") { lavaLayer = 0; Debug.Log("JAM: warden attacks harmless (test)"); }
         if (eye != null) eyeBase = eye.color;
     }
 
@@ -80,13 +85,17 @@ public class WardenBoss : MonoBehaviour
         JamAtmosphere.Shake(0.4f);
         yield return Flash(eye, Color.white, 0.6f, 4);
         yield return new WaitForSeconds(1.0f);
+        Arm(0);
         bool slam = true;
         while (!dead)
         {
             while (staggered && !dead) yield return null;
             if (dead) break;
+            int brokenBefore = broken;
             if (slam) yield return Slam(); else yield return Sweep();
             slam = !slam;
+            // only attacks started after the last break count toward re-arming the next setup
+            if (broken == brokenBefore && attacksUntilArm > 0 && --attacksUntilArm == 0) Arm(broken);
             float wait = Cooldown[Phase];
             for (float t = 0; t < wait && !dead && !staggered; t += Time.deltaTime) yield return null;
         }
@@ -105,7 +114,7 @@ public class WardenBoss : MonoBehaviour
         }
 
         // rear up
-        Vector3 home = tower != null ? tower.localPosition : Vector3.zero;
+        Quaternion home = tower != null ? tower.localRotation : Quaternion.identity;
         var marks = new List<SpriteRenderer>();
         var shards = new List<GameObject>();
         foreach (float x in xs)
@@ -120,18 +129,25 @@ public class WardenBoss : MonoBehaviour
         {
             if (dead) yield break;
             float k = t / tel;
-            if (tower != null) tower.localPosition = home + Vector3.up * 1.2f * Mathf.SmoothStep(0, 1, k);
+            if (tower != null) tower.localRotation = home * Quaternion.Euler(0, 0, -115f * Mathf.SmoothStep(0, 1, k));
             bool on = Mathf.Repeat(t * (6f + 6f * k), 1f) < 0.5f;
             foreach (var m in marks) if (m != null) m.color = on ? Orange : new Color(1f, 0.55f, 0.18f, 0.25f);
             foreach (var s in shards) if (s != null) s.transform.position = new Vector3(s.transform.position.x, ceilY - 0.75f, 0) + (Vector3)(Random.insideUnitCircle * 0.05f * k);
             yield return null;
         }
-        if (tower != null) tower.localPosition = home;
+        if (tower != null) StartCoroutine(SwingDown(home));
         JamAtmosphere.Shake(0.45f);
         ShellAudio.Play(ShellAudio.Sfx.Thud);
         foreach (var m in marks) if (m != null) Destroy(m.gameObject);
         foreach (var s in shards) if (s != null) StartCoroutine(Fall(s));
         yield return new WaitForSeconds(0.6f);
+    }
+
+    IEnumerator SwingDown(Quaternion home)
+    {
+        Quaternion from = tower.localRotation;
+        for (float t = 0; t < 0.12f; t += Time.deltaTime) { tower.localRotation = Quaternion.Slerp(from, home, t / 0.12f); yield return null; }
+        tower.localRotation = home;
     }
 
     float LandY(float x) => (x >= ledgeX.x && x <= ledgeX.y) ? ledgeTop : floorY;
@@ -190,6 +206,22 @@ public class WardenBoss : MonoBehaviour
         if (beam != null) { hazards.Remove(beam); Destroy(beam); }
     }
 
+    void Arm(int i)
+    {
+        if (dead || i >= cores.Length || i == armedIndex) return;
+        armedIndex = i;
+        attacksUntilArm = -1;
+        if (cores[i] != null) cores[i].Vulnerable = true;
+        if (setups != null && i < setups.Length && setups[i] != null)
+        {
+            setups[i].SetActive(true);
+            foreach (var r in setups[i].GetComponentsInChildren<SpriteRenderer>()) Pop(crashSprite, r.bounds.center, 0.08f, 0.35f, Cyan);
+        }
+        if (cores[i] != null) Pop(crashSprite, cores[i].transform.position, 0.1f, 0.4f, Cyan);
+        ShellAudio.Play(ShellAudio.Sfx.Click);
+        Debug.Log("JAM: warden setup armed " + (i + 1));
+    }
+
     // ------------------------------------------------------------------ damage & death
     public void CoreBroken(WardenCore core)
     {
@@ -198,7 +230,7 @@ public class WardenBoss : MonoBehaviour
         Debug.Log("JAM: warden core broken " + broken + "/" + cores.Length);
         if (broken - 1 < pips.Length && pips[broken - 1] != null) StartCoroutine(KillPip(pips[broken - 1]));
         if (broken >= cores.Length) StartCoroutine(Die());
-        else StartCoroutine(Stagger());
+        else { attacksUntilArm = attacksBeforeRearm; StartCoroutine(Stagger()); }
     }
 
     IEnumerator KillPip(SpriteRenderer pip)
