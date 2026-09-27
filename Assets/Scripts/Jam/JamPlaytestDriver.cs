@@ -14,6 +14,7 @@ public class JamPlaytestDriver : MonoBehaviour
 {
     public string scene, input, outDir, expect = "any";
     public float seconds;
+    public int frameFps; // >0: record every frame as JPG at a fixed game-time step (trailer footage)
     public List<float> shots;
 
     float start = -1, nextLog;
@@ -21,6 +22,11 @@ public class JamPlaytestDriver : MonoBehaviour
     string outcome = "none";
     Keyboard keyboard;
     bool done;
+    int frameIndex;
+
+    // When recording, the clock is the frame count: with Time.captureFramerate set, the game advances exactly 1/fps per
+    // rendered frame, so footage is smooth no matter how slowly the headless editor renders.
+    float Now() => frameFps > 0 ? (float)frameIndex / frameFps : Time.realtimeSinceStartup;
 
     static readonly Dictionary<string, Key> Aliases = new Dictionary<string, Key>(StringComparer.OrdinalIgnoreCase)
     {
@@ -45,9 +51,15 @@ public class JamPlaytestDriver : MonoBehaviour
     void Update()
     {
         if (done) return;
-        if (start < 0) { start = Time.realtimeSinceStartup; Directory.CreateDirectory(outDir); }
+        if (start < 0)
+        {
+            if (frameFps > 0) { Time.captureFramerate = frameFps; Directory.CreateDirectory(Path.Combine(outDir, "frames")); }
+            start = Now();
+            Directory.CreateDirectory(outDir);
+        }
         if (keyboard == null || !keyboard.added) { keyboard = InputSystem.AddDevice<Keyboard>(); keyboard.MakeCurrent(); }
-        float t = Time.realtimeSinceStartup - start;
+        float t = Now() - start;
+        if (frameFps > 0) Capture(Path.Combine(outDir, "frames", $"f{frameIndex++:00000}.jpg"), 1920, 1080, true);
 
         FeedInput(t);
 
@@ -66,7 +78,7 @@ public class JamPlaytestDriver : MonoBehaviour
 
         while (shots.Count > 0 && t >= shots[0])
         {
-            Capture(Path.Combine(outDir, $"{Path.GetFileNameWithoutExtension(scene)}_t{shots[0]:0.0}.png"));
+            Capture(Path.Combine(outDir, $"{Path.GetFileNameWithoutExtension(scene)}_t{shots[0]:0.0}.png"), 1600, 900, false);
             shots.RemoveAt(0);
         }
 
@@ -99,25 +111,25 @@ public class JamPlaytestDriver : MonoBehaviour
         InputSystem.QueueStateEvent(keyboard, new KeyboardState(held.ToArray()));
     }
 
-    static void Capture(string file)
+    static void Capture(string file, int w, int h, bool jpg)
     {
         var cam = Camera.main;
         if (cam == null) return;
-        var rt = RenderTexture.GetTemporary(1600, 900, 24, RenderTextureFormat.ARGB32);
+        var rt = RenderTexture.GetTemporary(w, h, 24, RenderTextureFormat.ARGB32);
         var prev = cam.targetTexture;
         cam.targetTexture = rt;
         cam.Render();
         cam.targetTexture = prev;
         var active = RenderTexture.active;
         RenderTexture.active = rt;
-        var tex = new Texture2D(1600, 900, TextureFormat.RGB24, false);
-        tex.ReadPixels(new Rect(0, 0, 1600, 900), 0, 0);
+        var tex = new Texture2D(w, h, TextureFormat.RGB24, false);
+        tex.ReadPixels(new Rect(0, 0, w, h), 0, 0);
         tex.Apply();
         RenderTexture.active = active;
         RenderTexture.ReleaseTemporary(rt);
-        File.WriteAllBytes(file, tex.EncodeToPNG());
+        File.WriteAllBytes(file, jpg ? tex.EncodeToJPG(90) : tex.EncodeToPNG());
         Destroy(tex);
-        Debug.Log("JAM: captured " + Path.GetFullPath(file));
+        if (!jpg) Debug.Log("JAM: captured " + Path.GetFullPath(file));
     }
 }
 #endif

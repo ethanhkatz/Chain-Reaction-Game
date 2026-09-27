@@ -15,6 +15,7 @@ using UnityEngine.InputSystem;
 //     -jamSeconds 6                                    (total run time)
 //     -jamExpect clear|gameover|any                    (default any)
 //     -jamOut JamCaptures/level1
+//     -jamFps 30                                       (optional: record every frame to <out>/frames/*.jpg for trailer footage)
 // Output: "JAM: t=.. player=(x,y) ball=(x,y)" every 0.5s, "JAM: OUTCOME ..", "JAM: RESULT OK|FAIL".
 // The per-frame work happens in JamPlaytestDriver, because the editor update loop does not tick in batchmode Play Mode.
 [InitializeOnLoad]
@@ -27,6 +28,7 @@ public static class JamPlaytest
     {
         public string scene, input, shots, expect, outDir;
         public float seconds;
+        public int fps;
         public string outcome;
         public int errors = -1;
     }
@@ -47,6 +49,7 @@ public static class JamPlaytest
             expect = JamCli.Arg("-jamExpect", "any"),
             outDir = JamCli.Arg("-jamOut", "JamCaptures"),
             seconds = float.Parse(JamCli.Arg("-jamSeconds", "5"), CultureInfo.InvariantCulture),
+            fps = int.Parse(JamCli.Arg("-jamFps", "0")),
         };
         SessionState.SetString(Key, JsonUtility.ToJson(c));
         EditorSceneManager.OpenScene(c.scene, OpenSceneMode.Single);
@@ -76,6 +79,7 @@ public static class JamPlaytest
             d.input = c.input;
             d.outDir = c.outDir;
             d.seconds = c.seconds;
+            d.frameFps = c.fps;
             d.shots = c.shots.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(x => float.Parse(x, CultureInfo.InvariantCulture)).OrderBy(x => x).ToList();
             d.expect = c.expect;
         }
