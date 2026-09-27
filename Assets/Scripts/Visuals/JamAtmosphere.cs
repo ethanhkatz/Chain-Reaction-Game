@@ -21,9 +21,11 @@ public class JamAtmosphere : MonoBehaviour
     Transform player, ball;
     Vector3 camAnchor;
 
-    struct Parallax { public Transform t; public Vector2 factor; public Vector3 basePos; public bool lockY; public float yOffset; }
-    readonly List<Parallax> layers = new List<Parallax>();
-    readonly List<(Light2D light, float baseIntensity, float seed)> flicker = new List<(Light2D, float, float)>();
+    // Serializable so the lists survive editor script reloads during Play Mode.
+    [System.Serializable] public struct Parallax { public Transform t; public Vector2 factor; public Vector3 basePos; public bool lockY; public float yOffset; }
+    [System.Serializable] public struct Flicker { public Light2D light; public float baseIntensity; public float seed; }
+    [SerializeField] List<Parallax> layers = new List<Parallax>();
+    [SerializeField] List<Flicker> flicker = new List<Flicker>();
 
     Transform playerLight, ballLight;
     Transform screenRoot;
@@ -52,11 +54,16 @@ public class JamAtmosphere : MonoBehaviour
         if (ball != null && ball.GetComponent<JamBallImpact>() == null) ball.gameObject.AddComponent<JamBallImpact>();
         if (player.GetComponent<JamLandingFx>() == null) player.gameObject.AddComponent<JamLandingFx>();
 
+    }
+
+    void OnEnable()
+    {
+        Instance = this;
         RenderPipelineManager.beginCameraRendering += OnBeginCam;
         RenderPipelineManager.endCameraRendering += OnEndCam;
     }
 
-    void OnDestroy()
+    void OnDisable()
     {
         if (Instance == this) Instance = null;
         RenderPipelineManager.beginCameraRendering -= OnBeginCam;
@@ -72,7 +79,7 @@ public class JamAtmosphere : MonoBehaviour
         // Far: blurred prison art pushed toward charcoal, nearly camera-locked.
         if (cfg.background != null)
         {
-            var bg = MakeSprite("BG_Far", cfg.background, cfg.unlitSprite, -100, new Color(0.34f, 0.40f, 0.44f));
+            var bg = MakeSprite("BG_Far", cfg.background, cfg.unlitSprite, -100, new Color(0.27f, 0.31f, 0.34f));
             Vector2 s = cfg.background.bounds.size;
             float k = Mathf.Max(w * 1.35f / s.x, h * 1.25f / s.y);
             bg.transform.localScale = Vector3.one * k;
@@ -80,7 +87,7 @@ public class JamAtmosphere : MonoBehaviour
         }
 
         // Charcoal wash between the far art and everything else: keeps the backdrop from competing with gameplay.
-        var wash = MakeSprite("BG_Wash", WhiteSprite(), cfg.unlitSprite, -95, new Color(0.16f, 0.19f, 0.21f, 0.45f));
+        var wash = MakeSprite("BG_Wash", WhiteSprite(), cfg.unlitSprite, -95, new Color(0.13f, 0.15f, 0.17f, 0.5f));
         wash.transform.localScale = new Vector3(w * 1.5f, h * 1.5f, 1f);
         AddLayer(wash.transform, Vector2.one, Vector3.zero);
 
@@ -154,7 +161,7 @@ public class JamAtmosphere : MonoBehaviour
             float rad = Mathf.Clamp(Mathf.Max(b.size.x, b.size.y) * 0.8f + 2f, 3f, 14f);
             var l = MakeLight("HazardGlow", Orange, 1.1f, rad * 0.25f, rad, 0.6f);
             l.transform.position = new Vector3(b.center.x, b.max.y, 0);
-            flicker.Add((l, l.intensity, Random.value * 10f));
+            flicker.Add(new Flicker { light = l, baseIntensity = l.intensity, seed = Random.value * 10f });
             SpawnEmbers(b);
         }
 
@@ -164,7 +171,7 @@ public class JamAtmosphere : MonoBehaviour
             Vector3 c = r != null ? r.bounds.center : go.transform.position;
             var l = MakeLight("ExitGlow", new Color(0.95f, 0.97f, 1f), 1.0f, 1f, 7f, 0.6f);
             l.transform.position = c;
-            flicker.Add((l, l.intensity, Random.value * 10f));
+            flicker.Add(new Flicker { light = l, baseIntensity = l.intensity, seed = Random.value * 10f });
         }
     }
 
@@ -340,6 +347,7 @@ public class JamAtmosphere : MonoBehaviour
     void LateUpdate()
     {
         Vector3 cp = cam.transform.position;
+        if (cam == null || player == null) return;
         foreach (var p in layers)
         {
             if (p.t == null) continue;
@@ -479,6 +487,7 @@ public class JamAtmosphere : MonoBehaviour
     {
         const int N = 512;
         var t = NewTex(N, N, TextureWrapMode.Repeat);
+        t.wrapModeV = TextureWrapMode.Clamp;
         var a = new float[N * N];
         void Fill(int x0, int y0, int x1, int y1, float v = 1f)
         {
@@ -519,6 +528,7 @@ public class JamAtmosphere : MonoBehaviour
     {
         const int W = 512, H = 128;
         var t = NewTex(W, H, TextureWrapMode.Repeat);
+        t.wrapModeV = TextureWrapMode.Clamp;
         var a = new float[W * H];
         void Dot(float cx, float cy, float r)
         {

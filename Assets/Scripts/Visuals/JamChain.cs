@@ -9,7 +9,7 @@ public class JamChain : MonoBehaviour
     Transform a, b;
     readonly List<(SpriteRenderer sr, float baseAngle, float diag)> segs = new List<(SpriteRenderer, float, float)>();
 
-    Sprite spriteA, spriteB;
+    [SerializeField] Sprite spriteA, spriteB;
     Material material;
     float maxLen = MaxLength;
     const float SegLen = 1.7f;   // world length of one chain-art segment
@@ -19,6 +19,26 @@ public class JamChain : MonoBehaviour
         a = player; b = ball; spriteA = linkA; spriteB = linkB ?? linkA; material = mat;
         var j = ball.GetComponent<DistanceJoint2D>() ?? player.GetComponent<DistanceJoint2D>();
         maxLen = j != null && j.distance > 0.1f ? j.distance : MaxLength;
+    }
+
+    // Editor script reloads during Play Mode drop the (non-serializable) segment list; re-adopt existing links.
+    void OnEnable()
+    {
+        segs.Clear();
+        foreach (Transform c in transform)
+        {
+            var sr = c.GetComponent<SpriteRenderer>();
+            if (sr == null || sr.sprite == null) continue;
+            segs.Add(Describe(sr));
+        }
+    }
+
+    (SpriteRenderer, float, float) Describe(SpriteRenderer sr)
+    {
+        Vector2 size = sr.sprite.bounds.size;
+        // Sprite A runs bottom-left -> top-right, B top-left -> bottom-right.
+        float ang = Mathf.Atan2(size.y, size.x) * Mathf.Rad2Deg;
+        return (sr, sr.sprite == spriteB && spriteB != spriteA ? -ang : ang, size.magnitude * 0.82f);
     }
 
     void Ensure(int n)
@@ -33,10 +53,7 @@ public class JamChain : MonoBehaviour
             sr.sprite = s;
             if (material != null) sr.sharedMaterial = material;
             sr.sortingOrder = 1;
-            Vector2 size = s.bounds.size;
-            // Sprite A runs bottom-left -> top-right, B top-left -> bottom-right.
-            float ang = Mathf.Atan2(size.y, size.x) * Mathf.Rad2Deg;
-            segs.Add((sr, s == spriteA ? ang : -ang, size.magnitude * 0.82f));
+            segs.Add(Describe(sr));
         }
         for (int i = 0; i < segs.Count; i++) segs[i].sr.enabled = i < n;
     }

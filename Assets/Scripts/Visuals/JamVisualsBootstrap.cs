@@ -17,7 +17,10 @@ public static class JamVisualsBootstrap
 
     static void Apply()
     {
-        if (JamAtmosphere.Instance != null) return;
+        if (JamAtmosphere.Instance != null || GameObject.Find("JamAtmosphere") != null)
+        {
+            return;
+        }
         var player = Object.FindFirstObjectByType<PlayerController>();
         var cam = Camera.main;
         if (player == null || cam == null) return;
