@@ -14,13 +14,14 @@ public static class Level3Builder
 {
     const string ScenePath = "Assets/Scenes/Levels/Level3.unity";
     const string Catalog = "Assets/Art/Catalog/";
-    const string GrayPath = "Assets/Art/Level3/l3_prison_block.png";
 
     static readonly HashSet<string> Keep = new HashSet<string>
         { "Main Camera", "Global Light 2D", "CinemachineCamera", "GameManager", "Canvas", "EventSystem", "Player", "Ball" };
 
     static int groundLayer, lavaLayer;
-    static Sprite gray;
+    static Sprite terrain;
+    const int HitsToBreak = 2;
+    static readonly Color MassTint = new Color(0.22f, 0.23f, 0.26f);
     static Transform root;
     static PhysicsMaterial2D slick;
     const string SlickPath = "Assets/Art/Level3/l3_slick.physicsMaterial2D";
@@ -30,7 +31,7 @@ public static class Level3Builder
         try
         {
             Directory.CreateDirectory("Assets/Scenes/Levels");
-            gray = EnsureGraySprite();
+            terrain = LoadTerrainSprite();
             slick = AssetDatabase.LoadAssetAtPath<PhysicsMaterial2D>(SlickPath);
             if (slick == null)
             {
@@ -89,20 +90,24 @@ public static class Level3Builder
         bg.transform.position += Vector3.forward * 20f;
 
         // ---- Static prison shell ----
-        Block("LeftWall", -18, -14, -4, 17);
-        Block("Ceiling", -18, 49, 14, 17);
-        Block("StartFloor", -18, 9.5f, -4, 0);
-        Block("PitFloor", 9.5f, 20.5f, -4, -3);
-        Block("RoomFloor", 20.5f, 40, -4, 0);
-        Block("ShaftLeftWall", 36, 40, -20, -4);
-        Block("ShaftRightWall", 46, 49, -10, 14);
-        Block("ShaftLedge1", 40, 41.8f, -7.6f, -7);
-        Block("ShaftLedge2", 40, 42.5f, -12.6f, -12);
-        Block("CorridorFloor", 36, 74, -24, -16);
-        Block("CorridorCeiling", 46, 74, -10, -8);
-        Block("EndWall", 72, 74, -16, -8);
-        Block("GateHeader", 33.5f, 35.5f, 7.3f, 14);
-        Block("ButtonLedge", 30.5f, 33.5f, 7.3f, 8f);
+        // Terrain standard: walkable tops = riveted floor art; all other mass = same art tinted dark, far back.
+        Block("LeftWall", -30, -14, -40, 30, false);
+        Block("Ceiling", -30, 60, 14, 30, false);
+        Block("StartFloor", -30, 9.5f, -40, 0, true);
+        Block("PitFloor", 9.5f, 20.5f, -40, -3, false);   // catches debris under the lava
+        Block("RoomFloor", 20.5f, 40, -4, 0, true);
+        Block("ShaftLeftWall", 20.5f, 40, -40, -4, false);
+        Block("ShaftRightWall", 46, 60, -8.5f, 14, false);
+        Block("ShaftLedge1", 40, 41.8f, -7.6f, -7, true);
+        Block("ShaftLedge2", 40, 42.5f, -12.6f, -12, true);
+        Bracket(40.4f, -7.6f, 1.2f);
+        Bracket(40.4f, -12.6f, 1.6f);
+        Block("CorridorFloor", 40, 80, -40, -16, true);
+        Block("CorridorCeiling", 46, 80, -8.5f, 14, false);
+        Block("EndWall", 72, 80, -16, -8.5f, false);
+        Block("GateHeader", 33.5f, 35.5f, 7.3f, 14, false);
+        Block("ButtonLedge", 30.5f, 33.5f, 7.3f, 8f, true);
+        Bracket(33.1f, 7.3f, 1.4f);
 
         // Lava pit under the drawbridge.
         Lava("LavaPit", 9.5f, 20.5f, -3f, -1.2f);
@@ -159,11 +164,11 @@ public static class Level3Builder
         var exit = new GameObject("ExitDoor");
         exit.tag = "Finish";
         exit.transform.SetParent(root);
-        exit.transform.position = new Vector3(68f, -16f + 2.58f, 0f);
+        exit.transform.position = new Vector3(65f, -16f + 2.58f, 0f);
         exit.transform.localScale = Vector3.one * 0.5f;
         var esr = exit.AddComponent<SpriteRenderer>();
         esr.sprite = S("obj_exit_door_glow");
-        esr.sortingOrder = 0;
+        esr.sortingOrder = -2; // behind player (2) and ball (1)
         var ec = exit.AddComponent<BoxCollider2D>();
         ec.isTrigger = true;
         ec.size = new Vector2(3f, 9f);
@@ -204,21 +209,31 @@ public static class Level3Builder
         return sr;
     }
 
-    static void Block(string name, float x0, float x1, float y0, float y1)
+    static void Block(string name, float x0, float x1, float y0, float y1, bool walkable)
     {
         var go = new GameObject(name);
         go.layer = groundLayer;
         go.transform.SetParent(root);
-        go.transform.position = new Vector3((x0 + x1) / 2f, (y0 + y1) / 2f, 0f);
+        var center = new Vector2((x0 + x1) / 2f, (y0 + y1) / 2f);
+        go.transform.position = center;
         var size = new Vector2(x1 - x0, y1 - y0);
-        var sr = go.AddComponent<SpriteRenderer>();
-        sr.sprite = gray;
-        sr.drawMode = SpriteDrawMode.Sliced;
-        sr.size = size;
-        sr.sortingOrder = 0;
         var bc = go.AddComponent<BoxCollider2D>();
         bc.size = size;
         bc.sharedMaterial = slick;
+        var mass = Tiled("Mass", terrain, go.transform, Vector2.zero, size, 0.5f, -10);
+        mass.color = MassTint;
+        if (walkable)
+        {
+            float h = Mathf.Min(1f, size.y);
+            Tiled("Top", terrain, go.transform, new Vector2(0f, size.y / 2f - h / 2f), new Vector2(size.x, h), 1f, 0);
+        }
+    }
+
+    // Dark wall bracket under a ledge so it reads as bolted to the wall (visual only).
+    static void Bracket(float x, float yTop, float height)
+    {
+        var sr = Tiled("Bracket", terrain, root, new Vector2(x, yTop - height / 2f), new Vector2(0.5f, height), 0.5f, -9);
+        sr.color = new Color(0.3f, 0.31f, 0.34f);
     }
 
     static void Lava(string name, float x0, float x1, float y0, float y1)
@@ -257,11 +272,17 @@ public static class Level3Builder
 
     static BreakableSupport Pillar(string name, float x, float yBottom, float height, FallingPlatform platform)
     {
+        // Visual plinth (no collider, so it never snags the player) that the pillar stack stands on.
+        var plinth = Tiled(name + "_Base", terrain, root, new Vector2(x, yBottom + 0.2f), new Vector2(1.5f, 0.4f), 0.5f, 0);
+        plinth.color = new Color(0.55f, 0.57f, 0.6f);
+        yBottom += 0.4f; height -= 0.4f;
         var sr = Tiled(name, S("obj_cyan_pillar"), root, new Vector2(x, yBottom + height / 2f), new Vector2(0.935f, height), 0.5f, -1);
         var c = sr.gameObject.AddComponent<BoxCollider2D>();
         c.size = new Vector2(sr.size.x * 0.85f, sr.size.y);
         var sup = sr.gameObject.AddComponent<BreakableSupport>();
         SetField(sup, "platform", platform);
+        SetField(sup, "hitsToBreak", HitsToBreak);
+        SetField(sup, "minImpactSpeed", 2f);
         return sup;
     }
 
@@ -270,41 +291,16 @@ public static class Level3Builder
         var so = new SerializedObject(o);
         var p = so.FindProperty(field);
         if (value is Vector2 v) p.vector2Value = v;
+        else if (value is int i) p.intValue = i;
+        else if (value is float f) p.floatValue = f;
         else p.objectReferenceValue = (UnityEngine.Object)value;
         so.ApplyModifiedPropertiesWithoutUndo();
     }
 
-    // A sliced gray prison block (charcoal-outlined, a few cracks), generated once and committed.
-    static Sprite EnsureGraySprite()
+    static Sprite LoadTerrainSprite()
     {
-        if (!File.Exists(GrayPath))
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(GrayPath));
-            const int N = 128, B = 6;
-            var tex = new Texture2D(N, N, TextureFormat.RGBA32, false);
-            var fill = new Color(0.42f, 0.44f, 0.46f);
-            var edge = new Color(0.07f, 0.07f, 0.08f);
-            var hi = new Color(0.52f, 0.54f, 0.56f);
-            for (int y = 0; y < N; y++)
-                for (int x = 0; x < N; x++)
-                {
-                    bool border = x < B || y < B || x >= N - B || y >= N - B;
-                    bool bevel = !border && (y >= N - B - 4);
-                    tex.SetPixel(x, y, border ? edge : bevel ? hi : fill);
-                }
-            tex.Apply();
-            File.WriteAllBytes(GrayPath, tex.EncodeToPNG());
-            AssetDatabase.ImportAsset(GrayPath);
-            var ti = (TextureImporter)AssetImporter.GetAtPath(GrayPath);
-            ti.spriteBorder = new Vector4(12, 12, 12, 12);
-            var settings = new TextureImporterSettings();
-            ti.ReadTextureSettings(settings);
-            settings.spriteMeshType = SpriteMeshType.FullRect;
-            ti.SetTextureSettings(settings);
-            ti.SaveAndReimport();
-        }
-        var s = AssetDatabase.LoadAssetAtPath<Sprite>(GrayPath);
-        if (s == null) throw new Exception("gray sprite missing");
-        return s;
+        foreach (var o in AssetDatabase.LoadAllAssetsAtPath("Assets/Images/Ground.png"))
+            if (o is Sprite sp) return sp;
+        throw new Exception("Ground.png sprite missing");
     }
 }
