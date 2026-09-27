@@ -18,7 +18,7 @@ public class YardBreakGame : MonoBehaviour
     [SerializeField] Transform background;
     [SerializeField] Vector2[] spawnPoints;      // x, base y (the surface the cutout stands on)
     [SerializeField] float arenaHalfWidth = 13f;
-    [SerializeField] float targetHeight = 2.3f;
+    [SerializeField] float targetHeight = 2.5f;
 
     public bool Running { get; private set; }
     float timeLeft = RoundSeconds, nextSpawn, lastSmash = -99f, bgStartX;
@@ -69,7 +69,7 @@ public class YardBreakGame : MonoBehaviour
     IEnumerator Punch(RectTransform rt, float life)
     {
         var g = rt.gameObject.AddComponent<CanvasGroup>();
-        for (float t = 0; t < life; t += Time.unscaledDeltaTime)
+        for (float t = 0; t < life; t += Dt)
         {
             float s = t < 0.1f ? Mathf.Lerp(0.2f, 1.3f, t / 0.1f) : t < 0.22f ? Mathf.Lerp(1.3f, 1f, (t - 0.1f) / 0.12f) : 1f + (t - 0.22f) * 0.05f;
             rt.localScale = Vector3.one * s;
@@ -159,7 +159,12 @@ public class YardBreakGame : MonoBehaviour
         GameplayAudio.Combo(chain);
 
         var cm = ComboMeter.Instance;
-        if (cm == null) return;
+        if (cm == null)
+        {
+            // lost after a script reload mid-play; replace the stale one
+            foreach (var old in FindObjectsByType<ComboMeter>(FindObjectsSortMode.None)) Destroy(old);
+            cm = gameObject.AddComponent<ComboMeter>();
+        }
         if (t.IsGold)
             cm.Pop(at, "GOLD x5!", 96, new Color(1f, 0.84f, 0.3f), ComicUI.Pink, 1.1f, "+" + points);
         else if (chain > 1)
@@ -180,7 +185,7 @@ public class YardBreakGame : MonoBehaviour
         go.transform.rotation = Quaternion.Euler(0, 0, Random.Range(-18f, 18f));
         float target = 3.2f / Mathf.Max(0.01f, crashSprite.bounds.size.x);
         const float dur = 0.4f;
-        for (float t = 0; t < dur; t += Time.unscaledDeltaTime)
+        for (float t = 0; t < dur; t += Dt)
         {
             float k = t / dur;
             float s = k < 0.2f ? Mathf.Lerp(0.3f, 1.2f, k / 0.2f) : Mathf.Lerp(1.2f, 1f, (k - 0.2f) / 0.8f);
@@ -259,14 +264,14 @@ public class YardBreakGame : MonoBehaviour
         again.Select();
 
         // slide the card in, then count the score up
-        for (float t = 0; t < 0.3f; t += Time.unscaledDeltaTime)
+        for (float t = 0; t < 0.3f; t += Dt)
         {
             float k = 1f - Mathf.Pow(1f - t / 0.3f, 3f);
             card.anchoredPosition = new Vector2(0, Mathf.Lerp(-900, -10, k));
             yield return null;
         }
         card.anchoredPosition = new Vector2(0, -10);
-        for (float t = 0; t < 0.8f; t += Time.unscaledDeltaTime)
+        for (float t = 0; t < 0.8f; t += Dt)
         {
             scoreText.text = Mathf.RoundToInt(score * (t / 0.8f)).ToString("N0");
             yield return null;
@@ -275,14 +280,14 @@ public class YardBreakGame : MonoBehaviour
 
         if (newBest)
         {
-            var stamp = ComicUI.Rect("NewBest", card, new Vector2(1f, 1f), new Vector2(-110, -250), new Vector2(250, 250));
-            var ringInk = ComicUI.Rect("Ink", stamp, new Vector2(0.5f, 0.5f), new Vector2(6, -6), new Vector2(250, 250));
+            var stamp = ComicUI.Rect("NewBest", card, new Vector2(1f, 0f), new Vector2(-105, 125), new Vector2(200, 200));
+            var ringInk = ComicUI.Rect("Ink", stamp, new Vector2(0.5f, 0.5f), new Vector2(5, -5), new Vector2(200, 200));
             ComicUI.Img(ringInk, ComicUI.RingSprite, ComicUI.Ink);
-            var ring = ComicUI.Rect("Ring", stamp, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(250, 250));
+            var ring = ComicUI.Rect("Ring", stamp, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(200, 200));
             ComicUI.Img(ring, ComicUI.RingSprite, ComicUI.Pink);
-            ComicUI.Text(stamp, "NEW\nBEST!", 62, new Vector2(0.5f, 0.5f), new Vector2(0, 0), new Vector2(240, 150), ComicUI.Pink, ComicUI.Ink);
+            ComicUI.Text(stamp, "NEW\nBEST!", 50, new Vector2(0.5f, 0.5f), new Vector2(0, 0), new Vector2(190, 120), ComicUI.Pink, ComicUI.Ink);
             GameplayAudio.Stamp();
-            for (float t = 0; t < 0.25f; t += Time.unscaledDeltaTime)
+            for (float t = 0; t < 0.25f; t += Dt)
             {
                 float k = t / 0.25f;
                 stamp.localScale = Vector3.one * Mathf.Lerp(2.4f, 1f, k * k);
@@ -303,6 +308,9 @@ public class YardBreakGame : MonoBehaviour
         img.type = Image.Type.Sliced;
         img.color = new Color(0.2f, 0.21f, 0.24f);
     }
+
+    // Real-time step for UI animations; floored so a hitching (or headless) frame rate can't stall them.
+    static float Dt => Mathf.Max(Time.unscaledDeltaTime, 1f / 60f);
 
     void ToTitle()
     {
