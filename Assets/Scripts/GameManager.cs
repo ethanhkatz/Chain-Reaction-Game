@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -9,15 +10,26 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject gameOverPanel;
     [SerializeField] private GameObject levelClearPanel;
 
+    // Raised when the level ends either way; the shell (audio, pause menu) listens to these.
+    public static event Action GameOverRaised;
+    public static event Action LevelClearRaised;
+
+    // True while Game Over / Level Clear has frozen time, so other systems don't unfreeze it.
+    public static bool Frozen { get; private set; }
+
     private void Awake()
     {
         instance = this;
+        Frozen = false;
     }
 
     public void GameOver()
     {
+        if (Frozen) return;
         //Freeze the game
+        Frozen = true;
         Time.timeScale = 0f;
+        GameOverRaised?.Invoke();
 
         if (gameOverPanel != null)
         {
@@ -27,7 +39,10 @@ public class GameManager : MonoBehaviour
 
     public void LevelClear()
     {
+        if (Frozen) return;
+        Frozen = true;
         Time.timeScale = 0f;
+        LevelClearRaised?.Invoke();
 
         if (levelClearPanel != null)
         {
