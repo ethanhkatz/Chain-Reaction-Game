@@ -90,6 +90,10 @@ public static class Level5Builder
         var rock = Prefab("Assets/Prefabs/BreakableRockStair.prefab", new Vector2(27.75f, 1.81f));
         rock.name = "CrackedBoulder";
         rock.transform.localScale = new Vector3(-1, 1, 1); // stairs sprite climbs to the left; mirror it to climb right
+        var rockShape = new SerializedObject(rock.GetComponent<RockShape>());
+        rockShape.FindProperty("isStairs").boolValue = true;
+        rockShape.FindProperty("matchSizeOnStairs").boolValue = true;
+        rockShape.ApplyModifiedPropertiesWithoutUndo();
         Solid("Gallery_Floor", 29, -20, 60, 3.5f);
         Solid("Ceiling_Gallery", 27, 16, 58, 18, DarkGray);
         Solid("Pillar_CeilingStep", 27, 10, 29, 16, DarkGray);
