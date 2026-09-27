@@ -900,7 +900,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8745033160520424739, guid: 5093c69ad099e6648a2af7af2fc54112, type: 3}
       propertyPath: m_TagString
-      value: MainCamera
+      value: Player
       objectReference: {fileID: 0}
     - target: {fileID: 9005820787319445778, guid: 5093c69ad099e6648a2af7af2fc54112, type: 3}
       propertyPath: walkSpeed
