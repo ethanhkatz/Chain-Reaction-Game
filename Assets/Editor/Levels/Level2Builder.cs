@@ -2,16 +2,21 @@ using System;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
+using TMPro;
 using UnityEngine;
 
 // Builds Assets/Scenes/Levels/Level2.unity ("Rocks") from SampleScene. Re-run freely; the builder is the source of truth.
 // Beats: (1) smash the cracked rock with the ball, push a piece into the pit onto the button -> laser gate opens;
-//        (2) knock the first tippy rock -> dominoes fall across the lava trench as a bridge; (3) exit door.
+//        (2) knock the first tippy rock -> dominoes fall across the lava trench as a bridge;
+//        (3) the cascade hall: split a second rock to get past, then knock eight growing dominoes whose last one
+//            slams the floor switch that drops the exit laser; (4) exit door.
+// Secret: a rock piece shoved against the hall curb is the step up to a high shelf (collectible + a little nod).
 public static class Level2Builder
 {
     const string ScenePath = "Assets/Scenes/Levels/Level2.unity";
     const string Cat = "Assets/Art/Catalog/";
-    const float Ceil = 7f;          // corridor ceiling (floor top is y = 0); player is ~3.2 tall, jumps ~8
+    const float Ceil = 7f;
+    const float HallStart = 62f, HallEnd = 121f, HallCeil = 14f; // cascade hall (beat 3) has a high ceiling          // corridor ceiling (floor top is y = 0); player is ~3.2 tall, jumps ~8
     static readonly Color Cyan = new Color(0.36f, 0.95f, 0.84f);
     static readonly Color RockCyan = new Color(0.55f, 1f, 0.9f);
     static readonly Color Mass = new Color(0.22f, 0.23f, 0.26f);
@@ -60,6 +65,8 @@ public static class Level2Builder
             var bg3 = Sprite(Cat + "env_background_prison_blur.png", "Background3", new Vector2(100, 6), 2.6f, new Color(0.3f, 0.3f, 0.34f), -100);
             bg3.transform.position = new Vector3(100, 6, 10);
             bg3.GetComponent<SpriteRenderer>().flipX = true;
+            var bg4 = Sprite(Cat + "env_background_prison_blur.png", "Background4", new Vector2(150, 8), 2.6f, new Color(0.3f, 0.3f, 0.34f), -100);
+            bg4.transform.position = new Vector3(160, 8, 10);
 
             // ---- shell: floors, ceiling, walls ----
             // terrain standard: walkable tops = floor art; all other mass = same art tinted dark, behind (order -10)
@@ -67,13 +74,14 @@ public static class Level2Builder
             Block("Floor_PitToLava", 24f, 36, -24, 0, true);   // pit x 19..24
             Block("PitBed", 19f, 24f, -24, -8f, false);
             Block("TrenchBed", 36, 54, -24, -0.6f, true);      // lava trench x 36..54
-            Block("Floor_End", 54, 72, -24, 0, true);
+            Block("Floor_End", 54, HallEnd, -24, 0, true);
             // Low curb before the dominoes: the player hops it, but rock pieces shoved along the floor stop here
             // instead of reaching the domino line and jamming the cascade.
             Block("Curb", 32.8f, 33.6f, -24, 1f, true);
-            Block("Ceiling", -40, 100, Ceil, Ceil + 20, false);
+            Block("Ceiling", -40, HallStart, Ceil, Ceil + 20, false);
+            Block("Ceiling_Hall", HallStart, HallEnd + 30, HallCeil, HallCeil + 20, false); // the hall opens up
             Block("Wall_Left", -40, -10, -24, Ceil, false);
-            Block("Wall_Right", 72, 100, -24, Ceil, false);    // closes the frame right after the exit
+            Block("Wall_Right", HallEnd, HallEnd + 30, -24, HallCeil, false);    // closes the frame right after the exit
 
             // ---- beat 1: cracked rock -> piece into pit -> button -> gate ----
             var big = Sprite(Cat + "obj_rock_cracked_1.png", "CrackedRock", new Vector2(10, 0), 0.8f, RockCyan, 1);
@@ -143,29 +151,15 @@ public static class Level2Builder
             var tippyPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/TippyRock.prefab");
             float[] xs = { 33.8f, 37.3f, 40.8f, 44.3f, 47.8f, 51.3f };
             for (int i = 0; i < xs.Length; i++)
-            {
-                float surface = xs[i] < 36 ? 0f : -0.6f;
-                var t = (GameObject)PrefabUtility.InstantiatePrefab(tippyPrefab, root);
-                t.name = "TippyRock_" + i;
-                t.transform.position = new Vector3(xs[i], surface + 2.62f, 0);
-                var hinge = t.GetComponent<HingeJoint2D>();
-                hinge.autoConfigureConnectedAnchor = false;
-                hinge.connectedAnchor = new Vector2(xs[i], surface + 2.62f - 0.42f * t.transform.localScale.y);
-                // dress the plain block as a cyan pillar; hide the duplicate child sprite
-                foreach (var csr in t.GetComponentsInChildren<SpriteRenderer>()) csr.enabled = false;
-                var art = new GameObject("PillarArt");
-                art.transform.SetParent(t.transform, false);
-                var asr = art.AddComponent<SpriteRenderer>();
-                asr.sprite = Load(Cat + "obj_cyan_pillar.png");
-                asr.sortingOrder = 1;
-                var sz = asr.sprite.bounds.size;
-                art.transform.localScale = new Vector3(1.15f / sz.x, 1f / sz.y, 1f);
-            }
+                Domino(tippyPrefab, "TippyRock_" + i, xs[i], xs[i] < 36 ? 0f : -0.6f, 1f, Color.white);
 
-            // ---- beat 3: exit ----
-            var door = Sprite(Cat + "obj_exit_door_glow.png", "ExitDoor", new Vector2(66, 0), 0.55f, Color.white, -1); // behind player/ball
+            // ---- beat 3: cascade hall ----
+            BuildCascadeHall(tippyPrefab);
+
+            // ---- beat 4: exit ----
+            var door = Sprite(Cat + "obj_exit_door_glow.png", "ExitDoor", new Vector2(DoorX, 0), 0.55f, Color.white, -1); // behind player/ball
             var dsr = door.GetComponent<SpriteRenderer>();
-            door.transform.position = new Vector3(66, dsr.bounds.extents.y, 0);
+            door.transform.position = new Vector3(DoorX, dsr.bounds.extents.y, 0);
             door.tag = "Finish";
             var dcol = door.AddComponent<BoxCollider2D>();
             dcol.isTrigger = true;
@@ -177,10 +171,16 @@ public static class Level2Builder
             Sprite(Cat + "haz_stalactite_gray.png", "Deco_Stal1", new Vector2(4, Ceil - 0.6f), 0.5f, new Color(0.6f, 0.6f, 0.65f), -2);
             Sprite(Cat + "haz_stalactite_gray.png", "Deco_Stal2", new Vector2(15, Ceil - 0.6f), 0.4f, new Color(0.6f, 0.6f, 0.65f), -2);
             Sprite(Cat + "haz_stalactite_gray.png", "Deco_Stal3", new Vector2(58, Ceil - 0.6f), 0.5f, new Color(0.6f, 0.6f, 0.65f), -2);
+            Sprite(Cat + "haz_stalactite_gray.png", "Deco_Stal4", new Vector2(88, HallCeil - 0.7f), 0.6f, new Color(0.6f, 0.6f, 0.65f), -2);
+            Sprite(Cat + "haz_stalactite_gray.png", "Deco_Stal5", new Vector2(101, HallCeil - 0.6f), 0.45f, new Color(0.6f, 0.6f, 0.65f), -2);
             Sprite(Cat + "obj_chain_link_1.png", "Deco_Chain", new Vector2(-6, Ceil - 0.7f), 0.5f, new Color(0.55f, 0.55f, 0.6f), -3);
             Sprite(Cat + "obj_chain_link_2.png", "Deco_Chain2", new Vector2(-6, Ceil - 1.4f), 0.5f, new Color(0.55f, 0.55f, 0.6f), -3);
             Sprite(Cat + "story_note_training.png", "Deco_Note", new Vector2(-3, 4.3f), 0.18f, new Color(0.8f, 0.8f, 0.8f), -4);
-            Sprite(Cat + "obj_gray_stairs_cracked.png", "Deco_Rubble", new Vector2(62, 1.1f), 0.45f, new Color(0.5f, 0.5f, 0.55f), -3);
+            Sprite(Cat + "obj_gray_stairs_cracked.png", "Deco_Rubble", new Vector2(58, 1.1f), 0.45f, new Color(0.5f, 0.5f, 0.55f), -3);
+
+            // ---- collectibles: easy on the path, a jump above the domino bridge, and the secret shelf (in the hall) ----
+            Collectible("Collectible_Start", new Vector2(5f, 1.6f), root);
+            Collectible("Collectible_Bridge", new Vector2(45.6f, 5.4f), root);
 
             // ---- spawn ----
             var player = GameObject.FindWithTag("Player");
@@ -201,6 +201,156 @@ public static class Level2Builder
             Debug.LogError("JAM: Level2Builder failed: " + e);
             EditorApplication.Exit(1);
         }
+    }
+
+    const float DoorX = 118f;
+
+    static void BuildCascadeHall(GameObject tippyPrefab)
+    {
+        // A second cracked rock, too tall to jump, bars the hall: smash it with the ball to get through.
+        var rock = Sprite(Cat + "obj_rock_cracked_2.png", "CrackedRock2", Vector2.zero, 0.6f, RockCyan, 1);
+        var rsr = rock.GetComponent<SpriteRenderer>();
+        rock.transform.position = new Vector3(65.5f, rsr.bounds.extents.y, 0);
+        rock.layer = LayerMask.NameToLayer("Rock");
+        rock.tag = "Rock";
+        rock.AddComponent<BoxCollider2D>().size = rsr.sprite.bounds.size;
+        rock.AddComponent<Rigidbody2D>().bodyType = RigidbodyType2D.Kinematic;
+        var so = new SerializedObject(rock.AddComponent<SplittingRock>());
+        so.FindProperty("breakSpeed").floatValue = 4f;
+        var ps = so.FindProperty("pieceSprites");
+        ps.arraySize = 2;
+        ps.GetArrayElementAtIndex(0).objectReferenceValue = Load(Cat + "obj_rock_cracked_3.png");
+        ps.GetArrayElementAtIndex(1).objectReferenceValue = Load(Cat + "obj_rock_cracked_2.png");
+        so.FindProperty("pieceCount").intValue = 3;
+        so.FindProperty("pieceScale").floatValue = 0.34f;
+        so.FindProperty("pieceMass").floatValue = 1f;
+        so.FindProperty("crashSprite").objectReferenceValue = Load(Cat + "fx_crash.png");
+        so.FindProperty("crashScale").floatValue = 0.4f;
+        so.ApplyModifiedPropertiesWithoutUndo();
+
+        // Curb: pieces shoved right stop here (well clear of the dominoes). A piece resting against it is also
+        // the only step high enough to reach the secret shelf above.
+        Block("Curb_Hall", 69.3f, 70.1f, -24, 1.0f, true);
+
+        // ---- eight dominoes, each a little bigger than the last ----
+        float x = 77f, scale = 1f;
+        for (int i = 0; i < 8; i++)
+        {
+            float k = i / 7f;
+            var tint = Color.Lerp(RockCyan, Color.white, k * 0.6f);
+            Domino(tippyPrefab, "CascadeRock_" + i, x, 0f, scale, tint);
+            float h = 5.25f * scale;
+            x += 0.6f * h;
+            scale *= 1.06f;
+        }
+        // x is now one step past the last domino; it lands (lying flat) on the switch below
+
+        // floor switch where the giant last domino lands -> drops the exit laser
+        var button = Sprite(Cat + "obj_button_red.png", "HallButton", new Vector2(110.5f, 0.35f), 0.6f, Color.white, 3);
+        var btrig = button.AddComponent<BoxCollider2D>();
+        btrig.isTrigger = true;
+        btrig.size = new Vector2(6f / 0.6f, 2f / 0.6f);
+        btrig.offset = new Vector2(-1f / 0.6f, 0.4f / 0.6f);
+
+        var gate = Sprite(Cat + "haz_laser_gate_1.png", "ExitLaserGate", new Vector2(114.5f, HallCeil * 0.5f), 1f, Color.white, 2);
+        var gsr = gate.GetComponent<SpriteRenderer>();
+        gate.transform.localScale = new Vector3(1f, HallCeil / gsr.sprite.bounds.size.y, 1f);
+        gate.AddComponent<BoxCollider2D>().size = gsr.sprite.bounds.size;
+        var gateComp = gate.AddComponent<Gate>();
+        var gso = new SerializedObject(gateComp);
+        gso.FindProperty("openOffset").vector2Value = new Vector2(0, 3f);
+        gso.ApplyModifiedPropertiesWithoutUndo();
+
+        var pso = new SerializedObject(button.AddComponent<PressButton>());
+        var tg = pso.FindProperty("targets");
+        tg.arraySize = 1;
+        tg.GetArrayElementAtIndex(0).objectReferenceValue = gateComp;
+        pso.FindProperty("pressedSprite").objectReferenceValue = Load(Cat + "obj_button_cyan.png");
+        pso.FindProperty("minMass").floatValue = 0.8f;
+        pso.ApplyModifiedPropertiesWithoutUndo();
+
+        var wire = Sprite("", "HallWire", Vector2.zero, 1f, Cyan * new Color(1, 1, 1, 0.6f), -5, groundSprite);
+        var wsr = wire.GetComponent<SpriteRenderer>();
+        wsr.drawMode = SpriteDrawMode.Tiled; wsr.size = new Vector2(4f, 0.15f);
+        wire.transform.position = new Vector3(112.5f, 0.2f, 0);
+
+        // ---- secret shelf: only reachable by standing on a rock piece pushed against the curb ----
+        var secret = new GameObject("Secret_ToBeContinued").transform;
+        secret.SetParent(root, false);
+        var shelf = Block("SecretShelf", 70.6f, 75.4f, 5.1f, 5.6f, true);
+        shelf.transform.SetParent(secret, true);
+        Collectible("Collectible_SecretShelf", new Vector2(74.3f, 6.5f), secret);
+
+        // "To Be Continued" arrow: a toppled domino as the shaft, two small ones as the head, pointing back left
+        var arrow = new GameObject("Deco_TBCArrow").transform;
+        arrow.SetParent(secret, false);
+        arrow.position = new Vector3(72.9f, 8.6f, 0);
+        var pillar = Load(Cat + "obj_cyan_pillar.png");
+        var arrowCol = new Color(0.93f, 0.75f, 0.35f);
+        ArrowPart(arrow, pillar, "Shaft", new Vector2(0.4f, 0), 90f, new Vector2(0.9f, 4.8f), arrowCol);
+        ArrowPart(arrow, pillar, "HeadUp", new Vector2(-1.4f, 0.6f), -45f, new Vector2(0.5f, 1.8f), arrowCol);
+        ArrowPart(arrow, pillar, "HeadDown", new Vector2(-1.4f, -0.6f), 45f, new Vector2(0.5f, 1.8f), arrowCol);
+        var txtGo = new GameObject("Deco_TBCText");
+        txtGo.transform.SetParent(secret, false);
+        txtGo.transform.position = new Vector3(73.7f, 8.6f, 0);
+        var tmp = txtGo.AddComponent<TextMeshPro>();
+        tmp.text = "<i>TO BE CONTINUED</i>";
+        tmp.fontSize = 4f;
+        tmp.fontStyle = FontStyles.Bold;
+        tmp.characterSpacing = 4f;
+        tmp.alignment = TextAlignmentOptions.Center;
+        tmp.color = new Color(0.11f, 0.11f, 0.13f);
+        tmp.rectTransform.sizeDelta = new Vector2(4.4f, 1f);
+        tmp.textWrappingMode = TextWrappingModes.NoWrap;
+        tmp.sortingOrder = -1;
+        // menacing little rock, striking a pose next to the arrow
+        var poser = Sprite(Cat + "obj_rock_cracked_3.png", "Deco_PosingRock", new Vector2(71.4f, 6.4f), 0.22f, RockCyan, -2);
+        poser.transform.SetParent(secret, true);
+        poser.transform.rotation = Quaternion.Euler(0, 0, 14f);
+    }
+
+    static void ArrowPart(Transform parent, Sprite sprite, string name, Vector2 local, float rot, Vector2 worldSize, Color c)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = local;
+        go.transform.localRotation = Quaternion.Euler(0, 0, rot);
+        var sr = go.AddComponent<SpriteRenderer>();
+        sr.sprite = sprite;
+        sr.color = c;
+        sr.sortingOrder = -2;
+        var sz = sprite.bounds.size;
+        go.transform.localScale = new Vector3(worldSize.x / sz.x, worldSize.y / sz.y, 1);
+    }
+
+    // TippyRock prefab dressed as a cyan pillar; scale grows the whole domino, hinged at its base on `surface`.
+    static GameObject Domino(GameObject prefab, string name, float x, float surface, float scale, Color tint)
+    {
+        var t = (GameObject)PrefabUtility.InstantiatePrefab(prefab, root);
+        t.name = name;
+        t.transform.localScale = Vector3.Scale(t.transform.localScale, new Vector3(scale, scale, 1));
+        float halfH = 0.5f * t.transform.localScale.y;
+        t.transform.position = new Vector3(x, surface + halfH + 0.0f, 0);
+        var hinge = t.GetComponent<HingeJoint2D>();
+        hinge.autoConfigureConnectedAnchor = false;
+        hinge.connectedAnchor = new Vector2(x, surface + halfH - 0.42f * t.transform.localScale.y);
+        foreach (var csr in t.GetComponentsInChildren<SpriteRenderer>()) csr.enabled = false;
+        var art = new GameObject("PillarArt");
+        art.transform.SetParent(t.transform, false);
+        var asr = art.AddComponent<SpriteRenderer>();
+        asr.sprite = Load(Cat + "obj_cyan_pillar.png");
+        asr.color = tint;
+        asr.sortingOrder = 1;
+        var sz = asr.sprite.bounds.size;
+        art.transform.localScale = new Vector3(1.15f / sz.x, 1f / sz.y, 1f);
+        return t;
+    }
+
+    static void Collectible(string name, Vector2 pos, Transform parent)
+    {
+        var c = Sprite(Cat + "obj_cyan_block_small.png", name, pos, 0.35f, Color.white, 3);
+        c.transform.SetParent(parent, true);
+        c.AddComponent<BoxCollider2D>().isTrigger = true;
     }
 
     static Sprite Load(string path)
