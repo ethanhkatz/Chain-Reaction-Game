@@ -46,7 +46,13 @@ public class BreakableSupport : MonoBehaviour
     {
         if (broken) return;
         broken = true;
-        foreach (var c in GetComponentsInChildren<Collider2D>()) c.enabled = false;
+        // Debris keeps its collider so it lands on the floor, but never blocks the player, ball or its platform.
+        var mine = GetComponentsInChildren<Collider2D>();
+        var others = new System.Collections.Generic.List<Collider2D>();
+        var ball = GameObject.FindWithTag("Ball");
+        if (ball != null) others.AddRange(ball.GetComponentsInChildren<Collider2D>());
+        if (platform != null) others.AddRange(platform.GetComponentsInChildren<Collider2D>());
+        foreach (var m in mine) foreach (var o in others) Physics2D.IgnoreCollision(m, o);
         if (platform != null) platform.Release();
         var rb = GetComponent<Rigidbody2D>();
         if (rb == null) rb = gameObject.AddComponent<Rigidbody2D>();
