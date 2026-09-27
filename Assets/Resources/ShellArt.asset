@@ -15,6 +15,17 @@ MonoBehaviour:
   idleFront1: {fileID: 21300000, guid: 24010cb4c1eef4eb2b0e437487cc1c9f, type: 3}
   idleFront2: {fileID: 21300000, guid: 8f0d67311584241928f8b986318b1b11, type: 3}
   buttonReturnTitle: {fileID: 21300000, guid: e76dbcf25fa1049caa66c4a601d45777, type: 3}
+  sign: {fileID: 21300000, guid: 3114dd98c4e847229aea726d4abadf74, type: 3}
+  chainLink1: {fileID: 21300000, guid: d55d6edd826df4ffe909d7361605166f, type: 3}
+  chainLink2: {fileID: 21300000, guid: 56cfd6ba7d3fd4bd382df818369dd420, type: 3}
+  crash: {fileID: 21300000, guid: d35c9e6786f984382a9d559eeb8e135a, type: 3}
+  credits: {fileID: 21300000, guid: d407ecd2a9e6404ca5b8ce0f71152ad2, type: 3}
+  ballSkins:
+  - {fileID: 21300000, guid: ab318bdf59aeb4762810932b451344b8, type: 3}
+  - {fileID: 21300000, guid: 3d9773dfe9d9b4eabb9eafb4fcdb6d09, type: 3}
+  - {fileID: 21300000, guid: 177fbdb32e634bfea90ac5fced177466, type: 3}
+  - {fileID: 21300000, guid: b94c7c28610446c2a056598c659271d1, type: 3}
+  - {fileID: 21300000, guid: de0410e5fa1f49df97425d7e6d11d3bb, type: 3}
   footsteps: {fileID: 8300000, guid: 2ec6d153745334e468608aeee6dc042e, type: 3}
   jump: {fileID: 8300000, guid: 629a1a12d289342e1bc9e3bba882a730, type: 3}
   deathExplosion: {fileID: 8300000, guid: 94ddadf5116fb49e8980b4646cb1291a, type: 3}

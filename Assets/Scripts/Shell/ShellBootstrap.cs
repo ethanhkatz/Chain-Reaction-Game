@@ -64,6 +64,7 @@ public static class ShellBootstrap
         var ball = GameObject.FindWithTag("Ball");
         if (ball == null) ball = GameObject.Find("Ball");
         if (ball != null && ball.GetComponent<BallShellFx>() == null) ball.AddComponent<BallShellFx>();
+        BallSkin.Apply(ball);
 
         var sceneRoot = new GameObject("[Shell Level]");
         sceneRoot.AddComponent<PauseMenu>();
