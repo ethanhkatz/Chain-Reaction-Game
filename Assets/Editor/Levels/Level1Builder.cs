@@ -7,7 +7,8 @@ using UnityEngine.SceneManagement;
 
 // Level 1 "Breaking objects" — the tutorial. Builds Assets/Scenes/Levels/Level1.unity from SampleScene.
 // Beats: run-up -> rock wall (break into stairs, climb over) -> rock under a ledge (break into stairs, climb up)
-//        -> small lava gap -> glowing exit.
+//        -> small lava gap -> three thin cyan walls to plow through (smash-smash-smash) -> glowing exit.
+// Secret: a cracked wall left of the spawn hides a cell with the training note and a key hung out of reach.
 // Run: Tools/jam.sh run Level1Builder.Build
 public static class Level1Builder
 {
@@ -28,6 +29,13 @@ public static class Level1Builder
     const float PitFloor = 2.6f;
     const float CeilingY = 14f;
     const float RockScale = 0.8f, RockWidthScale = 0.8f;
+    const float LevelEnd = 90f;          // inner face of the right wall
+    const float ExitX = 84.5f;
+    static readonly float[] SmashWallX = { 55f, 62f, 69f };
+    const float SmashWallH = 2.8f;       // jumpable, so the walls can never trap you
+    // Secret cell behind the cracked wall left of the spawn.
+    const float CellX0 = -17f, CellX1 = -9.5f, CellTop = 8.5f, CrackTop = 4.2f, CrackX1 = -8f;
+    const string KeyPath = "Assets/Art/Level1/L1_Key.png";
     const string WallMat = "Assets/Art/Level1/L1_NoFriction.physicsMaterial2D";
 
     static Transform geoRoot, decoRoot;
@@ -72,6 +80,9 @@ public static class Level1Builder
 
         BuildGeometry();
         BuildGameplay();
+        BuildSmashWalls();
+        BuildCollectibles();
+        BuildSecret();
         BuildDressing();
         PlaceActors(scene);
         ConfigureCamera(scene);
@@ -85,19 +96,21 @@ public static class Level1Builder
 
     static void BuildGeometry()
     {
-        // Main floor: spawn run-up, rock wall, up to the ledge.
-        Block("Floor_Main", -12f, 28.2f, 0f, -14f);
+        // Main floor: secret cell, spawn run-up, rock wall, up to the ledge.
+        Block("Floor_Main", CellX0 - 1f, 28.2f, 0f, -14f);
         // Ledge the player climbs onto via the second rock's stairs.
         Block("Ledge_A", 28.2f, 36f, LedgeTop, -14f);
         // Landing on the far side of the first rock, flush with its top step.
         Block("Landing_A", 15f + 1.785f, 19.5f, LedgeTop, -0.5f);
         // Lava pit floor (notch between the ledges).
         Block("Pit_Floor", 36f, 38.5f, PitFloor, -14f);
-        Block("Ledge_B", 38.5f, 60f, LedgeTop, -14f);
-        // Boundary walls and ceiling.
-        Block("Wall_Left", -30f, -8f, 30f, -14f);
-        Block("Wall_Right", 52f, 76f, 30f, LedgeTop);
-        Block("Ceiling", -30f, 76f, 30f, CeilingY);
+        Block("Ledge_B", 38.5f, LevelEnd + 2f, LedgeTop, -14f);
+        // Boundary walls and ceiling. The left wall is hollowed out into the secret cell.
+        Block("Wall_Left", -34f, CellX0, 30f, -14f);
+        Block("Wall_Left_CellRoof", CellX0 - 0.5f, CrackX1, 30f, CellTop);
+        Block("Wall_Left_Lintel", CellX1, CrackX1, CellTop, CrackTop);
+        Block("Wall_Right", LevelEnd, LevelEnd + 24f, 30f, LedgeTop);
+        Block("Ceiling", -34f, LevelEnd + 24f, 30f, CeilingY);
     }
 
     static void BuildGameplay()
@@ -129,10 +142,170 @@ public static class Level1Builder
         exit.tag = "Finish";
         float ds = 0.55f;
         exit.transform.localScale = new Vector3(ds, ds, 1f);
-        exit.transform.position = new Vector3(47.5f, LedgeTop + doorSprite.bounds.size.y * ds * 0.5f - 0.1f, 0f);
+        exit.transform.position = new Vector3(ExitX, LedgeTop + doorSprite.bounds.size.y * ds * 0.5f - 0.1f, 0f);
         var ec = exit.AddComponent<BoxCollider2D>();
         ec.isTrigger = true;
         ec.size = new Vector2(doorSprite.bounds.size.x * 0.6f, doorSprite.bounds.size.y * 0.8f);
+    }
+
+    // Beat 5: three thin cyan walls in a row. Run the ball through them; each shatters in one hit.
+    static void BuildSmashWalls()
+    {
+        var pillar = Sprite("obj_cyan_pillar");
+        for (int i = 0; i < SmashWallX.Length; i++)
+        {
+            var w = SpriteObj("Smash_Wall_" + (i + 1), pillar, geoRoot, SortGeo, Color.white);
+            w.layer = LayerMask.NameToLayer("Ground");
+            float sx = 1.0f / pillar.bounds.size.x, sy = SmashWallH / pillar.bounds.size.y;
+            w.transform.localScale = new Vector3(sx, sy, 1f);
+            w.transform.position = new Vector3(SmashWallX[i], LedgeTop + SmashWallH * 0.5f, 0f);
+            var col = w.AddComponent<BoxCollider2D>();
+            col.size = pillar.bounds.size;
+            col.sharedMaterial = AssetDatabase.LoadAssetAtPath<PhysicsMaterial2D>(WallMat);
+            ConfigureSmash(w.AddComponent<SmashWall>(), false, new Color(0.55f, 1f, 0.9f, 1f), "smash_wall");
+        }
+    }
+
+    static void ConfigureSmash(SmashWall sw, bool ignorePlayer, Color chunkColor, string kind)
+    {
+        var so = new SerializedObject(sw);
+        so.FindProperty("ignorePlayer").boolValue = ignorePlayer;
+        so.FindProperty("breakSpeed").floatValue = 1.5f;
+        var arr = so.FindProperty("chunkSprites");
+        arr.arraySize = 3;
+        arr.GetArrayElementAtIndex(0).objectReferenceValue = Sprite("obj_rock_cracked_1");
+        arr.GetArrayElementAtIndex(1).objectReferenceValue = Sprite("obj_rock_cracked_2");
+        arr.GetArrayElementAtIndex(2).objectReferenceValue = Sprite("obj_cyan_block_small");
+        so.FindProperty("chunkCount").intValue = 7;
+        so.FindProperty("chunkScale").floatValue = 0.22f;
+        so.FindProperty("chunkColor").colorValue = chunkColor;
+        so.FindProperty("crashSprite").objectReferenceValue = Sprite("fx_crash");
+        so.FindProperty("crashScale").floatValue = 0.22f;
+        so.FindProperty("reportKind").stringValue = kind;
+        so.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    // Collectibles: one easy on the run-up, one floating over the middle smash wall (jump onto it instead of
+    // plowing through), one hidden in the secret cell.
+    static void BuildCollectibles()
+    {
+        Collectible("Collectible_RunUp", new Vector2(6f, 1.1f), geoRoot);
+        Collectible("Collectible_OverWall", new Vector2(SmashWallX[1], LedgeTop + SmashWallH + 1.3f), geoRoot);
+    }
+
+    static GameObject Collectible(string name, Vector2 pos, Transform parent)
+    {
+        var s = Sprite("obj_cyan_block_small");
+        var go = SpriteObj(name, s, parent, 3, Color.white);
+        go.transform.localScale = new Vector3(0.35f, 0.35f, 1f);
+        go.transform.position = pos;
+        var c = go.AddComponent<BoxCollider2D>();
+        c.isTrigger = true;
+        c.size = s.bounds.size;
+        return go;
+    }
+
+    // Easter egg: a cracked, slightly paler wall left of the spawn. Walk into it and the trailing ball smashes it,
+    // revealing a cell with the training note and the cell key dangling far out of reach.
+    static void BuildSecret()
+    {
+        var root = new GameObject("Secret_KeyCell").transform;
+
+        var crack = Block("Secret_CrackedWall", CellX1, CrackX1, CrackTop, 0f);
+        crack.transform.SetParent(root);
+        crack.layer = 0; // not Ground: the player walks through it and must not "stand" inside it
+        var csr = crack.GetComponent<SpriteRenderer>();
+        csr.color = new Color(0.9f, 0.9f, 0.86f, 1f);
+        ConfigureSmash(crack.AddComponent<SmashWall>(), true, new Color(0.75f, 0.77f, 0.8f, 1f), "secret");
+        // Crack overlay so the wall reads as weak.
+        var rockCrack = Sprite("obj_rock_cracked_1");
+        var ov = SpriteObj("Crack_Overlay", rockCrack, crack.transform, SortGeo + 1, new Color(0.2f, 0.21f, 0.23f, 0.55f));
+        ov.transform.position = new Vector3((CellX1 + CrackX1) * 0.5f, CrackTop * 0.5f, 0f);
+        float ok = 1f / crack.transform.localScale.x;
+        ov.transform.localScale = new Vector3(0.28f * ok, 0.55f * ok, 1f);
+
+        // Dim cell backdrop.
+        var bsprite = AssetDatabase.LoadAssetAtPath<Sprite>(BlockPath);
+        var back = SpriteObj("Cell_Back", bsprite, root, SortBgProps + 2, new Color(0.22f, 0.23f, 0.26f, 1f));
+        var bsr = back.GetComponent<SpriteRenderer>();
+        bsr.drawMode = SpriteDrawMode.Tiled;
+        back.transform.localScale = new Vector3(1.6f, 1.6f, 1f);
+        bsr.size = new Vector2(CellX1 - CellX0, CellTop) / 1.6f;
+        back.transform.position = new Vector3((CellX0 + CellX1) * 0.5f, CellTop * 0.5f, 0f);
+
+        // The training note pinned to the back wall.
+        var note = SpriteObj("Cell_TrainingNote", Sprite("story_note_training"), root, SortProps + 5, new Color(0.9f, 0.91f, 0.93f, 1f));
+        note.transform.localScale = new Vector3(0.26f, 0.26f, 1f);
+        note.transform.rotation = Quaternion.Euler(0, 0, -4f);
+        note.transform.position = new Vector3(-14.8f, 3.3f, 0f);
+
+        // The key, hanging from the roof on a short chain, way above jump height.
+        var link = Sprite("obj_chain_link_1");
+        for (int k = 0; k < 2; k++)
+        {
+            var l = SpriteObj("Cell_KeyChain", link, root, SortProps + 5, new Color(0.6f, 0.62f, 0.65f, 1f));
+            l.transform.localScale = new Vector3(0.22f, 0.22f, 1f);
+            l.transform.rotation = Quaternion.Euler(0, 0, 90f + 20f * k);
+            l.transform.position = new Vector3(-11.6f, CellTop - 0.25f - 0.4f * k, 0f);
+        }
+        var key = SpriteObj("Cell_Key", EnsureKeySprite(), root, SortProps + 6, new Color(1f, 0.93f, 0.7f, 1f));
+        key.transform.localScale = new Vector3(0.55f, 0.55f, 1f);
+        key.transform.rotation = Quaternion.Euler(0, 0, -80f);
+        key.transform.position = new Vector3(-11.6f, CellTop - 1.45f, 0f);
+
+        var label = new GameObject("Cell_Label");
+        label.transform.SetParent(root);
+        label.transform.position = new Vector3(-11.6f, CellTop - 2.6f, 0f);
+        var tm = label.AddComponent<TextMesh>();
+        tm.text = "where's the key?";
+        tm.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        tm.fontSize = 48;
+        tm.characterSize = 0.06f;
+        tm.anchor = TextAnchor.MiddleCenter;
+        tm.alignment = TextAlignment.Center;
+        tm.color = new Color(1f, 0.93f, 0.7f, 0.9f);
+        var mr = label.GetComponent<MeshRenderer>();
+        mr.sharedMaterial = tm.font.material;
+        mr.sortingOrder = SortProps + 6;
+
+        // Hidden collectible on the cell floor.
+        Collectible("Collectible_SecretCell", new Vector2(-15.8f, 1.0f), root);
+    }
+
+    // A tiny pixel-art key, generated once and saved as a sprite asset.
+    static Sprite EnsureKeySprite()
+    {
+        if (!System.IO.File.Exists(KeyPath))
+        {
+            string[] rows =
+            {
+                "..XXX...................",
+                ".X...X..................",
+                "X.....X.................",
+                "X.....XXXXXXXXXXXXXXXXX.",
+                "X.....XXXXXXXXXXXXXXXXXX",
+                "X.....X..........X.X.X..",
+                ".X...X...........X.X.X..",
+                "..XXX............X...X..",
+            };
+            int w = rows[0].Length, h = rows.Length;
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                    tex.SetPixel(x, h - 1 - y, rows[y][x] == 'X' ? Color.white : new Color(0, 0, 0, 0));
+            System.IO.File.WriteAllBytes(KeyPath, tex.EncodeToPNG());
+            AssetDatabase.ImportAsset(KeyPath, ImportAssetOptions.ForceUpdate);
+            var ti = (TextureImporter)AssetImporter.GetAtPath(KeyPath);
+            ti.textureType = TextureImporterType.Sprite;
+            ti.spriteImportMode = SpriteImportMode.Single;
+            ti.spritePixelsPerUnit = 12;
+            ti.filterMode = FilterMode.Point;
+            ti.textureCompression = TextureImporterCompression.Uncompressed;
+            ti.SaveAndReimport();
+        }
+        var s = AssetDatabase.LoadAssetAtPath<Sprite>(KeyPath);
+        if (s == null) throw new Exception("key sprite missing");
+        return s;
     }
 
     static Vector2 RockSize()
@@ -185,18 +358,18 @@ public static class Level1Builder
         var bg = Sprite("env_background_prison_blur");
         float bs = 1.25f;
         float bw = bg.bounds.size.x * bs;
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 6; i++)
         {
             var b = SpriteObj("BG_" + i, bg, decoRoot, SortBg, new Color(0.30f, 0.32f, 0.36f, 1f));
             b.GetComponent<SpriteRenderer>().flipX = (i % 2) == 1;
             b.transform.localScale = new Vector3(bs, bs, 1f);
-            b.transform.position = new Vector3(-20f + bw * 0.5f + i * bw, 6.5f, 0f);
+            b.transform.position = new Vector3(-26f + bw * 0.5f + i * bw, 6.5f, 0f);
         }
 
         // Background pillars (dimmed to prison gray so they read as scenery, not interactables).
         var pillar = Sprite("obj_cyan_pillar");
         var pillarTint = new Color(0.26f, 0.28f, 0.30f, 1f);
-        foreach (var px in new[] { -3f, 9f, 22f, 33f, 44f })
+        foreach (var px in new[] { -3f, 9f, 22f, 33f, 44f, 58.5f, 72.5f, 80f })
         {
             var p = SpriteObj("BG_Pillar", pillar, decoRoot, SortBgProps, pillarTint);
             float ps = CeilingY / pillar.bounds.size.y;
@@ -207,7 +380,7 @@ public static class Level1Builder
         // Hanging chains from the ceiling (gray, decorative).
         var link = Sprite("obj_chain_link_1");
         var chainTint = new Color(0.45f, 0.48f, 0.5f, 1f);
-        foreach (var (cx, n) in new[] { (3.5f, 5), (11f, 3), (25f, 4), (41.5f, 3) })
+        foreach (var (cx, n) in new[] { (3.5f, 5), (11f, 3), (25f, 4), (41.5f, 3), (52f, 4), (65.5f, 3), (77f, 5) })
         {
             for (int k = 0; k < n; k++)
             {
@@ -220,7 +393,7 @@ public static class Level1Builder
 
         // Gray stalactites on the ceiling (no colliders — just atmosphere).
         var stal = Sprite("haz_stalactite_gray");
-        foreach (var (sx, s) in new[] { (7f, 0.6f), (8.2f, 0.4f), (19f, 0.5f), (31f, 0.65f), (32.1f, 0.42f), (45f, 0.5f) })
+        foreach (var (sx, s) in new[] { (7f, 0.6f), (8.2f, 0.4f), (19f, 0.5f), (31f, 0.65f), (32.1f, 0.42f), (45f, 0.5f), (59f, 0.55f), (66f, 0.45f), (74f, 0.6f), (75.1f, 0.4f) })
         {
             var st = SpriteObj("Deco_Stalactite", stal, decoRoot, SortProps, new Color(0.75f, 0.77f, 0.8f, 1f));
             st.transform.localScale = new Vector3(s, s, 1f);
