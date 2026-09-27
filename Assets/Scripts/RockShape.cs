@@ -14,6 +14,12 @@ public class RockShape : MonoBehaviour
     [Tooltip("Sprite for Stage 3 (Stairs shape)")]
     [SerializeField] private Sprite stairsSprite;
 
+    [Tooltip("Whether this changes into stairs after destruction")]
+    [SerializeField] private bool isStairs;
+
+    [Tooltip("Whether the stairs are facing left or right")]
+    [SerializeField] private bool stairsIsRight;
+
     private int currentStage = 0; // Tracks hits: 0 = Intact, 1 = Stage 1, 2 = Stage 2, 3 = Stage 3, 4 = Stairs
     private SpriteRenderer spriteRenderer;
 
@@ -55,7 +61,8 @@ public class RockShape : MonoBehaviour
                 if (stage2Sprite != null) ChangeSpriteAndMatchScale(stage2Sprite);
                 break;
             case 3:
-                ConvertToStairs();
+                if (isStairs) ConvertToStairs();
+                else Destroy(gameObject);
                 break;
         }
     }
@@ -89,6 +96,17 @@ public class RockShape : MonoBehaviour
         PolygonCollider2D polygonCollider = gameObject.AddComponent<PolygonCollider2D>();
         
         // Ensure the stairs are on your player's ground layer so they can jump off of it
-        gameObject.layer = LayerMask.NameToLayer("Ground"); 
+        gameObject.layer = LayerMask.NameToLayer("Ground");
+
+        // Scale the stairs and reflect if necessary
+        float newScale = transform.localScale.x / 2f;
+        if (stairsIsRight)
+        {
+            transform.localScale = new Vector3(newScale, newScale * 2.5f, newScale);
+        }
+        else
+        {
+            transform.localScale = new Vector3(-newScale, newScale * 2.5f, newScale);
+        }
     }
 }
