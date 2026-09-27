@@ -11,6 +11,8 @@ public class PlayerShellFx : MonoBehaviour
     public static PlayerShellFx Instance { get; private set; }
 
     public float idleSeconds = 30f;
+    // Off: the Player's own long-idle animation (the cowboy-hat frames) covers this now.
+    public bool useFrontIdle = false;
     public float alertSeconds = 0.6f;
     public float dangerRadius = 0.9f;
 
@@ -103,7 +105,7 @@ public class PlayerShellFx : MonoBehaviour
     void LateUpdate()
     {
         // Runs after PlayerController.Update has set its sprite, so the idle pose wins while it applies.
-        if (Time.unscaledTime - lastInput > idleSeconds && Time.timeScale > 0f)
+        if (useFrontIdle && Time.unscaledTime - lastInput > idleSeconds && Time.timeScale > 0f)
         {
             var art = ShellArt.Get();
             if (art != null && art.idleFront1 != null && sr != null)
