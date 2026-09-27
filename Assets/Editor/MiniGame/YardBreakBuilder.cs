@@ -13,7 +13,7 @@ public static class YardBreakBuilder
     const float FloorTop = -5f;
     const float Ortho = 7.5f;
     const float HalfWidth = 13.3f;
-    const float LowPlat = FloorTop + 1.9f, HighPlat = FloorTop + 3.6f;
+    const float LowPlat = FloorTop + 1.4f, HighPlat = FloorTop + 3.4f, StepInner = 9.6f;
 
     static readonly Color Stone = new Color(0.22f, 0.23f, 0.26f);
     static readonly Color Mass = new Color(0.1f, 0.105f, 0.12f);
@@ -57,12 +57,16 @@ public static class YardBreakBuilder
         Slab(floorPrefab, scene, yard, "Floor", 0f, FloorTop, 2f * HalfWidth + 4f);
         Tiled("Floor Mass", new Vector2(0, FloorTop - 1f - 6f), new Vector2(2f * HalfWidth + 6f, 12f), Mass, yard, -10, false, 0);
 
-        // --- low platforms at two heights ---
-        Slab(floorPrefab, scene, yard, "Platform Left", -7.5f, LowPlat, 3.6f);
-        Slab(floorPrefab, scene, yard, "Platform Right", 7.5f, LowPlat, 3.6f);
-        Slab(floorPrefab, scene, yard, "Platform Center", 0f, HighPlat, 4.2f);
-        foreach (var x in new[] { -7.5f, 7.5f }) Tiled("Post", new Vector2(x, (LowPlat - 1f + FloorTop) / 2f), new Vector2(0.5f, LowPlat - 1f - FloorTop), Stone, yard, -11, false, 0);
-        Tiled("Post", new Vector2(0, (HighPlat - 1f + FloorTop) / 2f), new Vector2(0.5f, HighPlat - 1f - FloorTop), Stone, yard, -11, false, 0);
+        // --- low ledges at two heights: solid steps at the sides, a floating deck in the middle high enough to walk
+        // (and swing the ball) under ---
+        foreach (var sgn in new[] { -1f, 1f })
+        {
+            float x0 = sgn * StepInner, x1 = sgn * (HalfWidth + 1f);
+            float cx = (x0 + x1) / 2f, w = Mathf.Abs(x1 - x0);
+            Slab(floorPrefab, scene, yard, sgn < 0 ? "Step Left" : "Step Right", cx, LowPlat, w);
+            Tiled("Step Mass", new Vector2(cx, (LowPlat - 1f + FloorTop) / 2f), new Vector2(w, LowPlat - 1f - FloorTop), Stone, yard, -10, true, ground);
+        }
+        Tiled("Deck", new Vector2(0, HighPlat - 0.3f), new Vector2(4.4f, 0.6f), new Color(0.8f, 0.82f, 0.86f), yard, -1, true, ground);
 
         // --- walls just past the screen edge ---
         Tiled("Wall Left", new Vector2(-HalfWidth - 0.8f, 2f), new Vector2(2f, 24f), Stone, yard, -9, true, ground);
@@ -106,14 +110,14 @@ public static class YardBreakBuilder
         var game = gameGo.AddComponent<YardBreakGame>();
         var gso = new SerializedObject(game);
         gso.FindProperty("targetSprite").objectReferenceValue = Load("Assets/Art/Gen/minigame_guard_target.png");
-        gso.FindProperty("crashSprite").objectReferenceValue = Load("Assets/Art/Catalog/fx_crash.png");
+        gso.FindProperty("crashSprite").objectReferenceValue = Largest("Assets/Art/Catalog/fx_crash.png");
         gso.FindProperty("background").objectReferenceValue = bg.transform;
         gso.FindProperty("arenaHalfWidth").floatValue = HalfWidth;
         Vector2[] spots =
         {
-            new Vector2(-11.2f, FloorTop), new Vector2(-4f, FloorTop), new Vector2(-1.2f, FloorTop), new Vector2(3.5f, FloorTop),
-            new Vector2(11.2f, FloorTop), new Vector2(-10f, FloorTop), new Vector2(10f, FloorTop),
-            new Vector2(-7.5f, LowPlat), new Vector2(7.5f, LowPlat), new Vector2(0f, HighPlat),
+            new Vector2(-7.6f, FloorTop), new Vector2(-4.6f, FloorTop), new Vector2(-1.6f, FloorTop), new Vector2(1.9f, FloorTop),
+            new Vector2(4.9f, FloorTop), new Vector2(7.8f, FloorTop),
+            new Vector2(-11.4f, LowPlat), new Vector2(11.4f, LowPlat), new Vector2(0f, HighPlat),
         };
         var sp = gso.FindProperty("spawnPoints");
         sp.arraySize = spots.Length;
@@ -123,6 +127,16 @@ public static class YardBreakBuilder
         EditorSceneManager.MarkSceneDirty(scene);
         if (!EditorSceneManager.SaveScene(scene)) throw new Exception("save failed");
         Debug.Log("JAM: built " + ScenePath);
+    }
+
+    // fx_crash is sliced into several sprites; the burst is the biggest one.
+    static Sprite Largest(string path)
+    {
+        Sprite best = null;
+        foreach (var o in AssetDatabase.LoadAllAssetsAtPath(path))
+            if (o is Sprite sp && (best == null || sp.rect.width * sp.rect.height > best.rect.width * best.rect.height)) best = sp;
+        if (best == null) throw new Exception("missing sprite " + path);
+        return best;
     }
 
     static Sprite Load(string path)
