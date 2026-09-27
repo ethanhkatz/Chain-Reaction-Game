@@ -48,8 +48,32 @@ public static class ShellBuilder
         art.idleFront1 = S("player_idle_front_1");
         art.idleFront2 = S("player_idle_front_2");
         art.buttonReturnTitle = S("ui_btn_returntitle_cyan");
+        art.footsteps = Clip("sfx_footsteps_run.wav", false);
+        art.jump = Clip("sfx_jump.wav", false);
+        art.deathExplosion = Clip("sfx_death_explosion.wav", false);
+        art.gameOverSting = Clip("sting_gameover_yarukizero.mp3", false);
+        art.musicMenu = Clip("music_escape.mp3", true);
+        art.musicLevel = Clip("music_vivid_anti_ray.mp3", true);
+        art.musicEnding = Clip("music_engram.mp3", true);
         EditorUtility.SetDirty(art);
         AssetDatabase.SaveAssets();
+    }
+
+    // Music streams (no big decompress hitch on load); short SFX stay decompressed for instant playback.
+    static AudioClip Clip(string file, bool isMusic)
+    {
+        string path = "Assets/Audio/" + file;
+        var imp = AssetImporter.GetAtPath(path) as AudioImporter;
+        if (imp == null) { Debug.LogWarning("JAM: missing audio " + path); return null; }
+        var st = imp.defaultSampleSettings;
+        st.loadType = isMusic ? AudioClipLoadType.Streaming : AudioClipLoadType.DecompressOnLoad;
+        st.compressionFormat = AudioCompressionFormat.Vorbis;
+        st.quality = isMusic ? 0.6f : 0.8f;
+        imp.defaultSampleSettings = st;
+        imp.forceToMono = !isMusic;
+        imp.loadInBackground = isMusic;
+        imp.SaveAndReimport();
+        return AssetDatabase.LoadAssetAtPath<AudioClip>(path);
     }
 
     static Camera MakeCamera()
@@ -112,7 +136,7 @@ public static class ShellBuilder
 
         var textGroup = Rect("Story", canvasGo.transform);
         textGroup.anchorMin = textGroup.anchorMax = new Vector2(0.5f, 0.5f);
-        textGroup.anchoredPosition = new Vector2(500, 60);
+        textGroup.anchoredPosition = new Vector2(500, 150);
         textGroup.sizeDelta = new Vector2(760, 420);
         var tg = textGroup.gameObject.AddComponent<CanvasGroup>();
         var tf = textGroup.gameObject.AddComponent<UIFadeIn>();
@@ -125,7 +149,7 @@ public static class ShellBuilder
 
         var btnRt = Rect("ReturnToTitleButton", canvasGo.transform);
         btnRt.anchorMin = btnRt.anchorMax = new Vector2(0.5f, 0.5f);
-        btnRt.anchoredPosition = new Vector2(500, -260);
+        btnRt.anchoredPosition = new Vector2(500, -120);
         btnRt.sizeDelta = new Vector2(520, 164);
         var bimg = btnRt.gameObject.AddComponent<Image>();
         bimg.sprite = S("ui_btn_returntitle_cyan");
@@ -136,6 +160,15 @@ public static class ShellBuilder
         btnRt.gameObject.AddComponent<CanvasGroup>();
         var bf = btnRt.gameObject.AddComponent<UIFadeIn>();
         bf.delay = 2.6f; bf.duration = 1f;
+
+        var credits = "Assets/Audio/CREDITS.txt";
+        if (System.IO.File.Exists(credits))
+        {
+            var cr = Text(canvasGo.transform, System.IO.File.ReadAllText(credits).Trim().Replace("\u3084\u308b\u6c17\u30bc\u30ed", "Yaruki Zero"), 15, new Vector2(500, -390), new Vector2(820, 200), new Color(1f, 1f, 1f, 0.45f));
+            cr.name = "Credits";
+            cr.alignment = TextAlignmentOptions.Bottom;
+            cr.textWrappingMode = TextWrappingModes.Normal;
+        }
 
         var es = new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
         es.GetComponent<EventSystem>().firstSelectedGameObject = btnRt.gameObject;
