@@ -22,10 +22,12 @@ public static class Level1Builder
         { "Main Camera", "CinemachineCamera", "Global Light 2D", "GameManager", "Canvas", "EventSystem", "Player", "Ball" };
 
     // Layout (world units). Floor top is y = 0.
-    const float LedgeTop = 6.0f;
+    // Flush with the rock top: the stairs' top step leads straight onto solid ground, so the ball never
+    // hangs over a drop and leaves the player dangling on the chain mid-climb.
+    const float LedgeTop = 5.176f;
     const float PitFloor = 2.6f;
     const float CeilingY = 14f;
-    const float RockScale = 0.8f, RockWidthScale = 1.0f;
+    const float RockScale = 0.8f, RockWidthScale = 0.8f;
     const string WallMat = "Assets/Art/Level1/L1_NoFriction.physicsMaterial2D";
 
     static Transform geoRoot, decoRoot;
@@ -48,9 +50,13 @@ public static class Level1Builder
     {
         if (!AssetDatabase.IsValidFolder("Assets/Scenes/Levels"))
             AssetDatabase.CreateFolder("Assets/Scenes", "Levels");
-        if (AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath) != null)
-            AssetDatabase.DeleteAsset(ScenePath);
-        if (!AssetDatabase.CopyAsset("Assets/Scenes/SampleScene.unity", ScenePath))
+        // Keep the scene GUID stable (build settings reference it): overwrite the file contents in place.
+        if (System.IO.File.Exists(ScenePath))
+        {
+            System.IO.File.Copy("Assets/Scenes/SampleScene.unity", ScenePath, true);
+            AssetDatabase.ImportAsset(ScenePath, ImportAssetOptions.ForceUpdate);
+        }
+        else if (!AssetDatabase.CopyAsset("Assets/Scenes/SampleScene.unity", ScenePath))
             throw new Exception("copy failed");
 
         ConfigureBlockSprite();
@@ -83,9 +89,11 @@ public static class Level1Builder
         Block("Floor_Main", -12f, 28.2f, 0f, -14f);
         // Ledge the player climbs onto via the second rock's stairs.
         Block("Ledge_A", 28.2f, 36f, LedgeTop, -14f);
+        // Landing on the far side of the first rock, flush with its top step.
+        Block("Landing_A", 15f + 1.785f, 19.5f, LedgeTop, -0.5f);
         // Lava pit floor (notch between the ledges).
-        Block("Pit_Floor", 36f, 39f, PitFloor, -14f);
-        Block("Ledge_B", 39f, 60f, LedgeTop, -14f);
+        Block("Pit_Floor", 36f, 38.5f, PitFloor, -14f);
+        Block("Ledge_B", 38.5f, 60f, LedgeTop, -14f);
         // Boundary walls and ceiling.
         Block("Wall_Left", -30f, -8f, 30f, -14f);
         Block("Wall_Right", 52f, 76f, 30f, LedgeTop);
@@ -103,17 +111,17 @@ public static class Level1Builder
         // Beat 4: lava gap.
         var lavaSprite = Sprite("haz_lava_pool_framed");
         var lava = SpriteObj("Lava_Pool", lavaSprite, geoRoot, SortGeo - 1, Color.white);
-        float lw = 3f / lavaSprite.bounds.size.x;
+        float lw = 2.5f / lavaSprite.bounds.size.x;
         lava.transform.localScale = new Vector3(lw, lw * 1.05f, 1f);
         float lh = lavaSprite.bounds.size.y * lw * 1.05f;
-        lava.transform.position = new Vector3(37.5f, PitFloor + lh * 0.5f - 0.05f, 0f);
+        lava.transform.position = new Vector3(37.25f, PitFloor + lh * 0.5f - 0.05f, 0f);
         var hazard = new GameObject("Lava_Trigger");
         hazard.transform.SetParent(geoRoot);
         hazard.layer = LayerMask.NameToLayer("Lava");
-        hazard.transform.position = new Vector3(37.5f, PitFloor + lh * 0.45f, 0f);
+        hazard.transform.position = new Vector3(37.25f, PitFloor + lh * 0.45f, 0f);
         var hc = hazard.AddComponent<BoxCollider2D>();
         hc.isTrigger = true;
-        hc.size = new Vector2(2.9f, lh * 0.8f);
+        hc.size = new Vector2(2.4f, lh * 0.8f);
 
         // Beat 5: glowing exit.
         var doorSprite = Sprite("obj_exit_door_glow");
@@ -145,15 +153,10 @@ public static class Level1Builder
         sr.sortingOrder = SortGeo;
         // Negative X scale: RockShape preserves the sign, so the stairs rise toward the right (climbable from the left).
         go.transform.localScale = new Vector3(-RockWidthScale, RockScale, 1f);
-        // Frictionless (body material is inherited by the stairs PolygonCollider RockShape adds at runtime),
-        // so the player never wall-sticks on a riser while holding a direction.
-        var mat = AssetDatabase.LoadAssetAtPath<PhysicsMaterial2D>(WallMat);
-        go.GetComponent<Rigidbody2D>().sharedMaterial = mat;
         go.transform.position = new Vector3(x, RockSize().y * 0.5f, 0f);
         var box = go.GetComponent<BoxCollider2D>();
         box.size = intact.bounds.size * 0.98f;
         box.offset = Vector2.zero;
-        box.sharedMaterial = mat;
 
         var so = new SerializedObject(go.GetComponent<RockShape>());
         so.FindProperty("stage1Sprite").objectReferenceValue = Sprite("obj_rock_cracked_2");
@@ -161,10 +164,6 @@ public static class Level1Builder
         so.FindProperty("stairsSprite").objectReferenceValue = Sprite("obj_gray_stairs_cracked");
         so.ApplyModifiedPropertiesWithoutUndo();
 
-        var steps = go.AddComponent<RockStairsSteps>();
-        var sso = new SerializedObject(steps);
-        sso.FindProperty("stepMaterial").objectReferenceValue = mat;
-        sso.ApplyModifiedPropertiesWithoutUndo();
     }
 
     static void EnsureNoFrictionMaterial()
@@ -315,8 +314,6 @@ public static class Level1Builder
         go.transform.position = new Vector3((x0 + x1) * 0.5f, (yTop + yBottom) * 0.5f, 0f);
         var col = go.AddComponent<BoxCollider2D>();
         col.size = size;
-        if (!name.StartsWith("Floor") && !name.StartsWith("Pit"))
-            col.sharedMaterial = AssetDatabase.LoadAssetAtPath<PhysicsMaterial2D>(WallMat);
         return go;
     }
 
