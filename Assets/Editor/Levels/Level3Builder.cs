@@ -38,8 +38,13 @@ public static class Level3Builder
                 slick = new PhysicsMaterial2D("l3_slick") { friction = 0f, bounciness = 0f };
                 AssetDatabase.CreateAsset(slick, SlickPath);
             }
-            AssetDatabase.DeleteAsset(ScenePath);
-            if (!AssetDatabase.CopyAsset("Assets/Scenes/SampleScene.unity", ScenePath)) throw new Exception("copy failed");
+            // Overwrite in place when the scene exists so its GUID (build settings reference) stays stable.
+            if (File.Exists(ScenePath))
+            {
+                File.Copy("Assets/Scenes/SampleScene.unity", ScenePath, true);
+                AssetDatabase.ImportAsset(ScenePath, ImportAssetOptions.ForceUpdate);
+            }
+            else if (!AssetDatabase.CopyAsset("Assets/Scenes/SampleScene.unity", ScenePath)) throw new Exception("copy failed");
             var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
             groundLayer = LayerMask.NameToLayer("Ground");
             lavaLayer = LayerMask.NameToLayer("Lava");
