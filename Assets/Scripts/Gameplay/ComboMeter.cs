@@ -16,6 +16,8 @@ public class ComboMeter : MonoBehaviour
     Canvas canvas;
     float lastEventTime = -99f;
     bool slowMo;
+    float lastSlowMo = -99f;
+    const float SlowMoCooldown = 2f; // real seconds; keeps repeated big chains from compounding
 
     void Awake()
     {
@@ -48,12 +50,12 @@ public class ComboMeter : MonoBehaviour
         LevelStats.AddChain(Chain, points);
         GameplayAudio.Combo(Chain);
 
-        if (Chain == 1) Pop(pos, "+" + points, 46, Color.white, ComicUI.Pink, 0.8f);
+        if (Chain == 1) Pop(pos, "+" + points, 52, Color.white, ComicUI.Pink, 0.8f);
         else
         {
             bool big = Chain >= SlowMoChain;
             string txt = "CHAIN x" + Chain + (big ? "!!" : "!");
-            Pop(pos, txt, Mathf.Min(64 + Chain * 8, 120), big ? ComicUI.Pink : ComicUI.Cyan, big ? ComicUI.Cyan : ComicUI.Pink, 1.1f,
+            Pop(pos, txt, Mathf.Min(80 + Chain * 10, 140), big ? ComicUI.Pink : ComicUI.Cyan, big ? ComicUI.Cyan : ComicUI.Pink, 1.1f,
                 "+" + points);
             if (big) StartSlowMo();
         }
@@ -74,6 +76,8 @@ public class ComboMeter : MonoBehaviour
     void StartSlowMo()
     {
         if (slowMo || GameManager.Frozen || Time.timeScale < ShellSettings.GameSpeed * 0.99f) return;
+        if (Time.unscaledTime - lastSlowMo < SlowMoCooldown) return;
+        lastSlowMo = Time.unscaledTime;
         StartCoroutine(SlowMo());
     }
 

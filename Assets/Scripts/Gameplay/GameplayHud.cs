@@ -43,7 +43,8 @@ public class GameplayHud : MonoBehaviour
         {
             if (lastPoints >= 0) scorePunch = 1f;
             lastPoints = LevelStats.Points;
-            score.text = LevelStats.Points.ToString("N0") + " PTS";
+            try { score.text = LevelStats.Points.ToString("N0") + " PTS"; }
+            catch (System.Exception e) { Debug.LogWarning("HUD score: " + e); }
         }
         float dt = Time.unscaledDeltaTime;
         countPunch = Mathf.MoveTowards(countPunch, 0f, dt * 4f);

@@ -36,8 +36,8 @@ public static class ComicUI
         {
             if (outlineMat != null) return outlineMat;
             outlineMat = new Material(Font.material) { name = "ComicOutline" };
-            outlineMat.SetFloat(ShaderUtilities.ID_FaceDilate, 0.2f);
-            outlineMat.SetFloat(ShaderUtilities.ID_OutlineWidth, 0.32f);
+            outlineMat.SetFloat(ShaderUtilities.ID_FaceDilate, 0.3f);
+            outlineMat.SetFloat(ShaderUtilities.ID_OutlineWidth, 0.45f);
             outlineMat.SetColor(ShaderUtilities.ID_OutlineColor, Ink);
             return outlineMat;
         }
@@ -80,7 +80,7 @@ public static class ComicUI
         t.fontStyle = FontStyles.Bold;
         t.color = color;
         t.alignment = align;
-        t.enableWordWrapping = false;
+        t.textWrappingMode = TextWrappingModes.NoWrap;
         t.overflowMode = TextOverflowModes.Overflow;
         t.raycastTarget = false;
         return t;
@@ -138,7 +138,7 @@ public static class ComicUI
                     px[y * n + x] = c;
                 }
             tex.SetPixels32(px); tex.Apply();
-            box = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), 100, 0, SpriteMeshType.FullRect, new Vector4(r + 2, r + 2, r + 2, r + 2));
+            box = Sprite.Create(tex, new UnityEngine.Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), 100, 0, SpriteMeshType.FullRect, new Vector4(r + 2, r + 2, r + 2, r + 2));
             return box;
         }
     }
@@ -169,7 +169,7 @@ public static class ComicUI
                     px[y * n + x] = new Color(1, 1, 1, a);
                 }
             tex.SetPixels32(px); tex.Apply();
-            ring = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), 100);
+            ring = Sprite.Create(tex, new UnityEngine.Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), 100);
             return ring;
         }
     }
@@ -191,7 +191,7 @@ public static class ComicUI
                     px[y * n + x] = new Color(1, 1, 1, a * a);
                 }
             tex.SetPixels32(px); tex.Apply();
-            glow = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), 64);
+            glow = Sprite.Create(tex, new UnityEngine.Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), 64);
             return glow;
         }
     }
@@ -213,7 +213,7 @@ public static class ComicUI
                     px[y * n + x] = new Color(1, 1, 1, Mathf.Clamp01(a));
                 }
             tex.SetPixels32(px); tex.Apply();
-            star = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), 48);
+            star = Sprite.Create(tex, new UnityEngine.Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), 48);
             return star;
         }
     }
