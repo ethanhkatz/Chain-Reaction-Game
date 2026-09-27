@@ -16,7 +16,7 @@ public static class Level2Builder
     const string ScenePath = "Assets/Scenes/Levels/Level2.unity";
     const string Cat = "Assets/Art/Catalog/";
     const float Ceil = 7f;
-    const float HallStart = 62f, HallEnd = 121f, HallCeil = 14f; // cascade hall (beat 3) has a high ceiling          // corridor ceiling (floor top is y = 0); player is ~3.2 tall, jumps ~8
+    const float HallStart = 62f, HallEnd = 125f, HallCeil = 14f; // cascade hall (beat 3) has a high ceiling          // corridor ceiling (floor top is y = 0); player is ~3.2 tall, jumps ~8
     static readonly Color Cyan = new Color(0.36f, 0.95f, 0.84f);
     static readonly Color RockCyan = new Color(0.55f, 1f, 0.9f);
     static readonly Color Mass = new Color(0.22f, 0.23f, 0.26f);
@@ -203,7 +203,7 @@ public static class Level2Builder
         }
     }
 
-    const float DoorX = 118f;
+    const float DoorX = 121f;
 
     static void BuildCascadeHall(GameObject tippyPrefab)
     {
@@ -233,14 +233,14 @@ public static class Level2Builder
         Block("Curb_Hall", 69.3f, 70.1f, -24, 1.0f, true);
 
         // ---- eight dominoes, each a little bigger than the last ----
-        float x = 77f, scale = 1f;
+        float x = 83f, scale = 1f;
         for (int i = 0; i < 8; i++)
         {
             float k = i / 7f;
             var tint = Color.Lerp(RockCyan, Color.white, k * 0.6f);
             Domino(tippyPrefab, "CascadeRock_" + i, x, 0f, scale, tint);
             float h = 5.25f * scale;
-            x += 0.6f * h;
+            x += 0.45f * h; // well under the height: each top strikes the next one high up
             scale *= 1.06f;
         }
         // x is now one step past the last domino; it lands (lying flat) on the switch below
@@ -252,7 +252,7 @@ public static class Level2Builder
         btrig.size = new Vector2(6f / 0.6f, 2f / 0.6f);
         btrig.offset = new Vector2(-1f / 0.6f, 0.4f / 0.6f);
 
-        var gate = Sprite(Cat + "haz_laser_gate_1.png", "ExitLaserGate", new Vector2(114.5f, HallCeil * 0.5f), 1f, Color.white, 2);
+        var gate = Sprite(Cat + "haz_laser_gate_1.png", "ExitLaserGate", new Vector2(116f, HallCeil * 0.5f), 1f, Color.white, 2);
         var gsr = gate.GetComponent<SpriteRenderer>();
         gate.transform.localScale = new Vector3(1f, HallCeil / gsr.sprite.bounds.size.y, 1f);
         gate.AddComponent<BoxCollider2D>().size = gsr.sprite.bounds.size;
@@ -271,8 +271,8 @@ public static class Level2Builder
 
         var wire = Sprite("", "HallWire", Vector2.zero, 1f, Cyan * new Color(1, 1, 1, 0.6f), -5, groundSprite);
         var wsr = wire.GetComponent<SpriteRenderer>();
-        wsr.drawMode = SpriteDrawMode.Tiled; wsr.size = new Vector2(4f, 0.15f);
-        wire.transform.position = new Vector3(112.5f, 0.2f, 0);
+        wsr.drawMode = SpriteDrawMode.Tiled; wsr.size = new Vector2(5.5f, 0.15f);
+        wire.transform.position = new Vector3(113.25f, 0.2f, 0);
 
         // ---- secret shelf: only reachable by standing on a rock piece pushed against the curb ----
         var secret = new GameObject("Secret_ToBeContinued").transform;
