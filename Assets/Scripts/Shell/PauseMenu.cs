@@ -5,11 +5,11 @@ using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-// Escape pauses. "AAA Accessibility": game speed slider (0.5x-1x) and a high-contrast toggle.
+// Escape pauses. "AAA Accessibility": game speed slider (0.5x-1x), music/SFX volume and a high-contrast toggle.
 public class PauseMenu : MonoBehaviour
 {
     GameObject root;
-    TextMeshProUGUI speedLabel, contrastLabel;
+    TextMeshProUGUI speedLabel, musicLabel, sfxLabel, contrastLabel;
     Slider slider;
     public bool Paused { get; private set; }
 
@@ -23,24 +23,34 @@ public class PauseMenu : MonoBehaviour
         ShellUI.Stretch(dim);
         dim.gameObject.AddComponent<Image>().color = new Color(0.03f, 0.03f, 0.04f, 0.82f);
 
-        var panel = ShellUI.Rect("Panel", canvas.transform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(620, 600));
+        var panel = ShellUI.Rect("Panel", canvas.transform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(640, 840));
         panel.gameObject.AddComponent<Image>().color = new Color(0.1f, 0.11f, 0.13f, 0.97f);
         var o = panel.gameObject.AddComponent<Outline>();
         o.effectColor = ShellUI.Cyan; o.effectDistance = new Vector2(3, -3);
 
-        ShellUI.Text(panel, "PAUSED", 64, new Vector2(0.5f, 0.5f), new Vector2(0, 230), new Vector2(600, 90), ShellUI.Cyan).fontStyle = FontStyles.Bold;
+        ShellUI.Text(panel, "PAUSED", 64, new Vector2(0.5f, 0.5f), new Vector2(0, 330), new Vector2(600, 90), ShellUI.Cyan).fontStyle = FontStyles.Bold;
 
-        speedLabel = ShellUI.Text(panel, "", 32, new Vector2(0.5f, 0.5f), new Vector2(0, 140), new Vector2(560, 50), Color.white);
-        slider = BuildSlider(panel, new Vector2(0, 90));
+        speedLabel = ShellUI.Text(panel, "", 30, new Vector2(0.5f, 0.5f), new Vector2(0, 245), new Vector2(560, 46), Color.white);
+        slider = BuildSlider(panel, new Vector2(0, 205));
         slider.minValue = 0.5f; slider.maxValue = 1f;
         slider.value = ShellSettings.GameSpeed;
         slider.onValueChanged.AddListener(v => { ShellSettings.GameSpeed = Mathf.Round(v * 20f) / 20f; RefreshLabels(); });
 
-        var contrast = ShellUI.TextButton(panel, "", new Vector2(0, 0), ToggleContrast);
+        musicLabel = ShellUI.Text(panel, "", 30, new Vector2(0.5f, 0.5f), new Vector2(0, 150), new Vector2(560, 46), Color.white);
+        var music = BuildSlider(panel, new Vector2(0, 110));
+        music.value = ShellSettings.MusicVolume;
+        music.onValueChanged.AddListener(v => { ShellSettings.MusicVolume = v; RefreshLabels(); });
+
+        sfxLabel = ShellUI.Text(panel, "", 30, new Vector2(0.5f, 0.5f), new Vector2(0, 55), new Vector2(560, 46), Color.white);
+        var sfx = BuildSlider(panel, new Vector2(0, 15));
+        sfx.value = ShellSettings.SfxVolume;
+        sfx.onValueChanged.AddListener(v => { ShellSettings.SfxVolume = v; RefreshLabels(); });
+
+        var contrast = ShellUI.TextButton(panel, "", new Vector2(0, -70), ToggleContrast);
         contrastLabel = contrast.GetComponentInChildren<TextMeshProUGUI>();
-        ShellUI.TextButton(panel, "Resume", new Vector2(0, -95), Resume);
-        ShellUI.TextButton(panel, "Restart Level", new Vector2(0, -175), () => { Resume(); GameManager.instance?.RestartScene(); });
-        ShellUI.TextButton(panel, "Quit to Title", new Vector2(0, -255), () => { Resume(); Time.timeScale = 1f; SceneManager.LoadScene(0); });
+        ShellUI.TextButton(panel, "Resume", new Vector2(0, -150), Resume);
+        ShellUI.TextButton(panel, "Restart Level", new Vector2(0, -230), () => { Resume(); GameManager.instance?.RestartScene(); });
+        ShellUI.TextButton(panel, "Quit to Title", new Vector2(0, -310), () => { Resume(); Time.timeScale = 1f; SceneManager.LoadScene(0); });
 
         ShellUI.Text(panel, "Esc to resume", 22, new Vector2(0.5f, 0f), new Vector2(0, -30), new Vector2(560, 40), new Color(1, 1, 1, 0.5f));
 
@@ -69,6 +79,8 @@ public class PauseMenu : MonoBehaviour
     void RefreshLabels()
     {
         speedLabel.text = $"Game Speed  {ShellSettings.GameSpeed:0.00}x";
+        musicLabel.text = $"Music  {Mathf.RoundToInt(ShellSettings.MusicVolume * 100)}%";
+        sfxLabel.text = $"Sound Effects  {Mathf.RoundToInt(ShellSettings.SfxVolume * 100)}%";
         contrastLabel.text = "High Contrast: " + (ShellSettings.HighContrast ? "ON" : "OFF");
     }
 
