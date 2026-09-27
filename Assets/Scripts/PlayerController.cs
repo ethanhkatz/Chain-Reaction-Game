@@ -5,7 +5,7 @@ public class PlayerController : MonoBehaviour
 {
     [SerializeField] private LayerMask groundLayer;
     [SerializeField] private Transform groundCheckPoint;
-    [SerializeField] private float groundCheckRadius;
+    [SerializeField] private Vector2 groundCheckSize; // Changed from radius to Vector2 size
     [SerializeField] private float jumpVelocity;
     [SerializeField] private float walkSpeed;
 
@@ -13,15 +13,13 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Sprite idleLeftSprite;
     [SerializeField] private Sprite jumpRightSprite;
     [SerializeField] private Sprite jumpLeftSprite;
-
     [SerializeField] private Sprite[] runRightFrames;
     [SerializeField] private Sprite[] runLeftFrames;
     [SerializeField] private float frameRate = 0.1f;
-    
-    private bool isGrounded;
-    private bool jumpRequested; // Tracks if a valid jump input happened
-    private bool facingRight = true;
 
+    private bool isGrounded;
+    private bool jumpRequested; 
+    private bool facingRight = true;
     private float animationTimer;
     private int currentFrameIndex;
 
@@ -36,8 +34,8 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        // 1. Check if the player is touching the floor
-        Collider2D collider = Physics2D.OverlapCircle(groundCheckPoint.position, groundCheckRadius, groundLayer);
+        // 1. Check if the player is touching the floor using a box overlap
+        Collider2D collider = Physics2D.OverlapBox(groundCheckPoint.position, groundCheckSize, 0f, groundLayer);
         isGrounded = collider != null;
 
         // 2. Catch the exact frame the jump key is pressed while on the ground
@@ -63,11 +61,9 @@ public class PlayerController : MonoBehaviour
         // 3. Apply the jump force safely within the physics cycle
         if (jumpRequested)
         {
-            // Reset the y-velocity first to prevent multiplying forces
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
             rb.AddForce(new Vector2(0f, jumpVelocity), ForceMode2D.Impulse);
-            
-            jumpRequested = false; // Reset the request
+            jumpRequested = false; 
         }
 
         // Horizontal Movement
@@ -80,7 +76,7 @@ public class PlayerController : MonoBehaviour
         {
             horizontalVelocity -= walkSpeed;
         }
-        
+
         rb.linearVelocity = new Vector2(horizontalVelocity, rb.linearVelocity.y);
     }
 
@@ -93,13 +89,13 @@ public class PlayerController : MonoBehaviour
         }
 
         bool isMoving = Keyboard.current.rightArrowKey.isPressed || Keyboard.current.leftArrowKey.isPressed;
+
         if (isMoving)
         {
             animationTimer += Time.deltaTime;
             if (animationTimer >= frameRate)
             {
                 animationTimer = 0f;
-                
                 int frameCount = facingRight ? runRightFrames.Length : runLeftFrames.Length;
                 if (frameCount > 0)
                 {
@@ -114,14 +110,13 @@ public class PlayerController : MonoBehaviour
         currentFrameIndex = 0;
     }
 
-
-
     private void OnDrawGizmosSelected()
     {
         if (groundCheckPoint != null)
         {
             Gizmos.color = Color.blue;
-            Gizmos.DrawSphere(groundCheckPoint.position, groundCheckRadius);
+            // Changed to draw a wire cube matching the box dimensions
+            Gizmos.DrawWireCube(groundCheckPoint.position, groundCheckSize);
         }
     }
 }
