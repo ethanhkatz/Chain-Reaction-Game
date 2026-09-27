@@ -134,8 +134,7 @@ public static class Level5Builder
 
         // ---------- E: the climb to the exit ----------
         Solid("Floor_E", 60, -20, 106, 3.5f);
-        Solid("Ceiling_E", 58, 20, 106, 22, DarkGray);
-        Solid("Wall_Right", 103, -20, 106, 22, DarkGray);
+        Solid("Ceiling_E", 58, 20, 103, 22, DarkGray);
         CyanBlock("Step_1", 68.5f, 5.3f);
         CyanBlock("Step_2", 72.3f, 7.2f);
         Solid("Catwalk_1", 75.5f, 8.2f, 86f, 9f);
@@ -163,7 +162,7 @@ public static class Level5Builder
         var door = new GameObject("ExitDoor");
         door.transform.SetParent(root);
         door.tag = "Finish";
-        door.transform.position = new Vector3(99.5f, 9f + 2.55f, 0);
+        door.transform.position = new Vector3(146.5f, 9f + 2.55f, 0);
         door.transform.localScale = Vector3.one * 0.5f;
         var dsr = door.AddComponent<SpriteRenderer>();
         dsr.sprite = S("obj_exit_door_glow");
@@ -171,7 +170,9 @@ public static class Level5Builder
         var dcol = door.AddComponent<BoxCollider2D>();
         dcol.isTrigger = true;
         dcol.size = new Vector2(dsr.sprite.bounds.size.x * 0.6f, dsr.sprite.bounds.size.y * 0.9f);
-        Deco("Exit_Glow", S("fx_crash"), new Vector2(99.5f, 11.5f), 0.35f, new Color(1, 1, 1, 0.12f), -3);
+        Deco("Exit_Glow", S("fx_crash"), new Vector2(146.5f, 11.5f), 0.35f, new Color(1, 1, 1, 0.12f), -3);
+
+        BuildWardenArena();
 
         // ---------- spawn ----------
         var player = GameObject.Find("Player");
@@ -189,6 +190,181 @@ public static class Level5Builder
         cmFollow.transform.position = new Vector3(sx, sy, cmFollow.transform.position.z);
         var mc = GameObject.Find("Main Camera");
         mc.transform.position = new Vector3(sx, sy, mc.transform.position.z);
+    }
+
+    // ---------- F: the Warden's arena (floor y=9, ceiling y=22.5) ----------
+    // Three cyan cores, each cracked by a chain reaction, never by the ball directly:
+    //   head     - ball onto the ledge button -> the ceiling stalactite drops on it
+    //   shoulder - ball smashes the anchor post -> the cable snaps and the crusher drops on it
+    //   knee     - ball topples the domino into it
+    static void BuildWardenArena()
+    {
+        Solid("Arena_Floor", 103, -20, 150, 9);
+        Solid("Arena_Lintel", 102, 20, 104, 22.5f, DarkGray);
+        Solid("Arena_Ceiling", 102, 22.5f, 153, 25, DarkGray);
+        Solid("Wall_Right", 150, -20, 153, 25, DarkGray);
+        Solid("Boss_Ledge", 108, 9, 112, 10.5f);
+
+        var cp = new GameObject("BossCheckpoint");
+        cp.transform.SetParent(root);
+        cp.transform.position = new Vector3(102.5f, 14f, 0);
+        var cpc = cp.AddComponent<BoxCollider2D>();
+        cpc.isTrigger = true;
+        cpc.size = new Vector2(1f, 10f);
+        cp.AddComponent<BossCheckpoint>().spawn = new Vector2(100f, 10.7f);
+
+        var bossGo = new GameObject("Warden");
+        bossGo.transform.SetParent(root);
+        var boss = bossGo.AddComponent<WardenBoss>();
+        var body = new GameObject("Warden_Body").transform;
+        body.SetParent(bossGo.transform);
+        var tower = new GameObject("Warden_Tower").transform;
+        tower.SetParent(body);
+
+        // machine body: thick dark outline + riveted gray plate
+        Plate(body, "Base", 130, 9, 142, 14, BossGray, true);
+        Plate(tower, "Tower", 134, 14, 142, 18.5f, BossGray, true);
+        Plate(tower, "Visor", 134.4f, 15.7f, 136.6f, 17.3f, new Color(0.12f, 0.12f, 0.14f), false);
+        for (int i = 0; i < 6; i++) // hazard stripes along the base
+            Plate(body, "Stripe", 130.6f + i * 1.9f, 9.3f, 131.6f + i * 1.9f, 10.1f, Orange, false);
+        Plate(body, "Emitter", 129.3f, 9.2f, 130.1f, 10.4f, Orange, false);
+        var eye = Deco("Warden_Eye", S("ball_small_a"), new Vector2(135.5f, 16.5f), 0.22f, Orange, -4);
+        eye.transform.SetParent(tower, true);
+        for (int i = 0; i < 3; i++)
+        {
+            var tooth = Deco("Tooth", S("haz_stalactite_gray"), new Vector2(134.8f + i * 0.7f, 15.3f), 0.35f, Orange, -4);
+            tooth.transform.SetParent(tower, true);
+        }
+        Chain(new Vector2(139, 22.5f), 3);
+        Chain(new Vector2(141, 22.5f), 2);
+
+        // cores
+        var coreHead = Core(tower, "Core_Head", new Vector2(138.2f, 19.0f), 0.42f, 0, boss);
+        var coreShoulder = Core(body, "Core_Shoulder", new Vector2(132f, 14.45f), 0.45f, 0, boss);
+        var coreKnee = Core(body, "Core_Knee", new Vector2(129.6f, 11.3f), 0.5f, 90, boss);
+
+        // head: button on the ledge drops the stalactite hanging over the head core
+        var stal = Deco("Warden_Stalactite", S("haz_stalactite_cyan"), new Vector2(138.2f, 21.6f), 0.6f, Color.white, 2);
+        var srb = stal.AddComponent<Rigidbody2D>();
+        srb.mass = 2f;
+        var scol = stal.AddComponent<BoxCollider2D>();
+        scol.size = new Vector2(1.0f, 2.0f);
+        var dropper = stal.AddComponent<WardenDropper>();
+        stal.AddComponent<WardenStriker>().consumeOnHit = true;
+        var btn = Button("Button_Warden", 110f, 10.5f, dropper);
+
+        // shoulder: anchor post holds the crusher by a cable over a ceiling pulley
+        var crusher = Deco("Warden_Crusher", S("obj_cyan_platform"), new Vector2(132f, 19.8f), 0.36f, Color.white, 1);
+        crusher.layer = LayerMask.NameToLayer("Ground");
+        var crb = crusher.AddComponent<Rigidbody2D>();
+        crb.bodyType = RigidbodyType2D.Kinematic;
+        var ccol = crusher.AddComponent<BoxCollider2D>();
+        ccol.size = new Vector2(S("obj_cyan_platform").bounds.size.x * 0.92f, S("obj_cyan_platform").bounds.size.y * 0.8f);
+        var fp = crusher.AddComponent<FallingPlatform>();
+        var fso = new SerializedObject(fp);
+        fso.FindProperty("dropMass").floatValue = 6f;
+        fso.FindProperty("impactFx").objectReferenceValue = S("fx_crash");
+        fso.ApplyModifiedPropertiesWithoutUndo();
+        crusher.AddComponent<WardenStriker>();
+
+        var post = Deco("Anchor_Post", S("obj_cyan_pillar"), new Vector2(118f, 9f + 1.5f), 0.5f, Color.white, 1);
+        post.layer = LayerMask.NameToLayer("Ground");
+        var pcol = post.AddComponent<BoxCollider2D>();
+        pcol.size = S("obj_cyan_pillar").bounds.size * 0.9f;
+        var sup = post.AddComponent<BreakableSupport>();
+        var sso = new SerializedObject(sup);
+        sso.FindProperty("platform").objectReferenceValue = fp;
+        sso.ApplyModifiedPropertiesWithoutUndo();
+        var rope = new GameObject("Crusher_Cable");
+        rope.transform.SetParent(root);
+        rope.AddComponent<WardenRope>().support = sup;
+        Cable(rope.transform, new Vector2(118f, 12f), new Vector2(118f, 22.3f));
+        Cable(rope.transform, new Vector2(118f, 22.3f), new Vector2(132f, 22.3f));
+        Cable(rope.transform, new Vector2(132f, 22.3f), new Vector2(132f, 20.6f));
+        Deco("Pulley", S("ball_small_b"), new Vector2(118f, 22.2f), 0.12f, Gray, 0);
+        Deco("Pulley", S("ball_small_b"), new Vector2(132f, 22.2f), 0.12f, Gray, 0);
+
+        // knee: a domino standing in front of the machine
+        var dom = Prefab("Assets/Prefabs/TippyRock.prefab", new Vector2(124.6f, 9f + 2.63f));
+        dom.name = "Warden_Domino";
+        dom.layer = LayerMask.NameToLayer("Ground");
+        foreach (var sr in dom.GetComponentsInChildren<SpriteRenderer>()) sr.color = Cyan;
+        var ds = dom.AddComponent<WardenStriker>();
+        ds.respawnIfWasted = true;
+
+        // HP pips
+        var pips = new SpriteRenderer[3];
+        for (int i = 0; i < 3; i++)
+        {
+            var pip = Deco("Warden_Pip_" + (i + 1), S("obj_cyan_block_small"), new Vector2(139.6f + i * 0.9f, 20.7f), 0.28f, Color.white, 4);
+            pip.transform.SetParent(body, true);
+            pips[i] = pip.GetComponent<SpriteRenderer>();
+        }
+
+        var exitGate = LaserGate("Gate_Exit", 144f, 9f, 22.5f);
+
+        var so = new SerializedObject(boss);
+        var cores = so.FindProperty("cores");
+        cores.arraySize = 3;
+        cores.GetArrayElementAtIndex(0).objectReferenceValue = coreHead;
+        cores.GetArrayElementAtIndex(1).objectReferenceValue = coreShoulder;
+        cores.GetArrayElementAtIndex(2).objectReferenceValue = coreKnee;
+        var pp = so.FindProperty("pips");
+        pp.arraySize = 3;
+        for (int i = 0; i < 3; i++) pp.GetArrayElementAtIndex(i).objectReferenceValue = pips[i];
+        so.FindProperty("body").objectReferenceValue = body;
+        so.FindProperty("tower").objectReferenceValue = tower;
+        so.FindProperty("eye").objectReferenceValue = eye.GetComponent<SpriteRenderer>();
+        so.FindProperty("exitGate").objectReferenceValue = exitGate;
+        so.FindProperty("ledgeX").vector2Value = new Vector2(108, 112);
+        so.FindProperty("ledgeTop").floatValue = 10.5f;
+        so.FindProperty("shardSprite").objectReferenceValue = S("haz_stalactite_gray");
+        so.FindProperty("warnSprite").objectReferenceValue = FirstSprite("Assets/Images/Ground.png");
+        so.FindProperty("laserSprite").objectReferenceValue = S("haz_laser_gate_2");
+        so.FindProperty("crashSprite").objectReferenceValue = S("fx_crash");
+        so.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    static readonly Color BossGray = new Color(0.5f, 0.51f, 0.56f);
+
+    static void Plate(Transform parent, string name, float x0, float y0, float x1, float y1, Color c, bool solid)
+    {
+        const float o = 0.22f; // outline thickness
+        var outline = Block(name + "_Outline", x0 - o, y0 - o, x1 + o, y1 + o, new Color(0.03f, 0.03f, 0.04f));
+        outline.transform.SetParent(parent, true);
+        UnityEngine.Object.DestroyImmediate(outline.GetComponent<BoxCollider2D>());
+        outline.GetComponent<SpriteRenderer>().sortingOrder = -13;
+        var go = Block(name, x0, y0, x1, y1, c);
+        go.transform.SetParent(parent, true);
+        go.GetComponent<SpriteRenderer>().sortingOrder = solid ? -12 : -11;
+        if (!solid) UnityEngine.Object.DestroyImmediate(go.GetComponent<BoxCollider2D>());
+    }
+
+    static WardenCore Core(Transform parent, string name, Vector2 pos, float scale, float rot, WardenBoss boss)
+    {
+        var go = Deco(name, S("obj_cyan_block_small"), pos, scale, Color.white, -3);
+        go.transform.rotation = Quaternion.Euler(0, 0, rot);
+        go.transform.SetParent(parent, true);
+        var bc = go.AddComponent<BoxCollider2D>();
+        bc.size = S("obj_cyan_block_small").bounds.size * 0.9f;
+        var core = go.AddComponent<WardenCore>();
+        core.boss = boss;
+        core.crackFx = S("fx_crash");
+        return core;
+    }
+
+    static void Cable(Transform parent, Vector2 a, Vector2 b)
+    {
+        var go = new GameObject("Cable");
+        go.transform.SetParent(parent);
+        go.transform.position = (a + b) / 2;
+        var sr = go.AddComponent<SpriteRenderer>();
+        sr.sprite = FirstSprite("Assets/Images/Ground.png");
+        sr.drawMode = SpriteDrawMode.Tiled;
+        var d = b - a;
+        sr.size = new Vector2(Mathf.Max(Mathf.Abs(d.x), 0.14f), Mathf.Max(Mathf.Abs(d.y), 0.14f));
+        sr.color = new Color(0.08f, 0.08f, 0.09f);
+        sr.sortingOrder = -2;
     }
 
     // ---------------- helpers ----------------
