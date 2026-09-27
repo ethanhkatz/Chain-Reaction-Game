@@ -14,7 +14,7 @@ public static class Level2Builder
     const float Ceil = 7f;          // corridor ceiling (floor top is y = 0); player is ~3.2 tall, jumps ~8
     static readonly Color Cyan = new Color(0.36f, 0.95f, 0.84f);
     static readonly Color RockCyan = new Color(0.55f, 1f, 0.9f);
-    static readonly Color Wall = new Color(0.55f, 0.36f, 0.4f);
+    static readonly Color Mass = new Color(0.22f, 0.23f, 0.26f);
     static readonly Color Orange = new Color(1f, 0.55f, 0.15f);
 
     static Sprite groundSprite, lavaSprite;
@@ -30,7 +30,7 @@ public static class Level2Builder
             var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
 
             var lavaGo = GameObject.Find("Lava");
-            lavaSprite = lavaGo.GetComponent<SpriteRenderer>().sprite;
+            lavaSprite = Load(Cat + "haz_lava_tile.png");
             var floorPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Floor.prefab");
             groundSprite = floorPrefab.GetComponent<SpriteRenderer>().sprite;
 
@@ -57,14 +57,15 @@ public static class Level2Builder
             bg3.GetComponent<SpriteRenderer>().flipX = true;
 
             // ---- shell: floors, ceiling, walls ----
-            Block("Floor_Start", -12, 19f, -8, 0);             // spawn + cracked rock
-            Block("Floor_PitToLava", 24f, 36, -8, 0);          // pit x 19..24
-            Block("PitBed", 19f, 24f, -8, -6f);
-            Block("TrenchBed", 36, 54, -8, -0.6f);             // lava trench x 36..54
-            Block("Floor_End", 54, 76, -8, 0);
-            Block("Ceiling", -12, 76, Ceil, Ceil + 12);
-            Block("Wall_Left", -14, -10, -8, Ceil + 12);
-            Block("Wall_Right", 72, 76, -8, Ceil + 12);
+            // terrain standard: walkable tops = floor art; all other mass = same art tinted dark, behind (order -10)
+            Block("Floor_Start", -10, 19f, -24, 0, true);      // spawn + cracked rock
+            Block("Floor_PitToLava", 24f, 36, -24, 0, true);   // pit x 19..24
+            Block("PitBed", 19f, 24f, -24, -8f, false);
+            Block("TrenchBed", 36, 54, -24, -0.6f, true);      // lava trench x 36..54
+            Block("Floor_End", 54, 72, -24, 0, true);
+            Block("Ceiling", -40, 100, Ceil, Ceil + 20, false);
+            Block("Wall_Left", -40, -10, -24, Ceil, false);
+            Block("Wall_Right", 72, 100, -24, Ceil, false);    // closes the frame right after the exit
 
             // ---- beat 1: cracked rock -> piece into pit -> button -> gate ----
             var big = Sprite(Cat + "obj_rock_cracked_1.png", "CrackedRock", new Vector2(10, 0), 0.8f, RockCyan, 1);
@@ -90,13 +91,15 @@ public static class Level2Builder
             so.ApplyModifiedPropertiesWithoutUndo();
 
             // pit: lava at the bottom, button trigger just above it (out of the ball's reach from the ledge)
-            Lava("PitLava", 19f, 24f, -6f, -4.8f);
-            var button = Sprite(Cat + "obj_button_cyan.png", "PitButton", new Vector2(21.5f, -6f), 0.6f, Color.white, 3);
+            // pit: 2 lava tiles deep; the switch hangs on the pit's right wall above the lava. Its trigger spans the
+            // pit width at a depth the ball can't reach from the ledge, so only a dropped rock flips it.
+            Lava("PitLava", 19f, 24f, -8f, -5.1f);
+            var button = Sprite(Cat + "obj_button_red.png", "PitButton", new Vector2(23.4f, -4.2f), 0.6f, Color.white, 3);
             var bsr = button.GetComponent<SpriteRenderer>();
-            button.transform.position = new Vector3(21.5f, -6f + bsr.bounds.extents.y, 0);
             var btrig = button.AddComponent<BoxCollider2D>();
             btrig.isTrigger = true;
-            btrig.size = new Vector2(5f / 0.6f, bsr.sprite.bounds.size.y);
+            btrig.size = new Vector2(5f / 0.6f, 1.4f / 0.6f);
+            btrig.offset = new Vector2((21.5f - 23.4f) / 0.6f, 0f);
 
             // laser gate: floor to ceiling
             var gate = Sprite(Cat + "haz_laser_gate_1.png", "LaserGate", new Vector2(30, Ceil * 0.5f), 1f, Color.white, 2);
@@ -113,7 +116,7 @@ public static class Level2Builder
             var tg = pso.FindProperty("targets");
             tg.arraySize = 1;
             tg.GetArrayElementAtIndex(0).objectReferenceValue = gateComp;
-            pso.FindProperty("pressedSprite").objectReferenceValue = Load(Cat + "obj_button_red.png");
+            pso.FindProperty("pressedSprite").objectReferenceValue = Load(Cat + "obj_button_cyan.png"); // OFF -> ON
             pso.FindProperty("minMass").floatValue = 0.8f;
             pso.ApplyModifiedPropertiesWithoutUndo();
 
@@ -152,13 +155,15 @@ public static class Level2Builder
             }
 
             // ---- beat 3: exit ----
-            var door = Sprite(Cat + "obj_exit_door_glow.png", "ExitDoor", new Vector2(66, 0), 0.55f, Color.white, 1);
+            var door = Sprite(Cat + "obj_exit_door_glow.png", "ExitDoor", new Vector2(66, 0), 0.55f, Color.white, -1); // behind player/ball
             var dsr = door.GetComponent<SpriteRenderer>();
             door.transform.position = new Vector3(66, dsr.bounds.extents.y, 0);
             door.tag = "Finish";
             var dcol = door.AddComponent<BoxCollider2D>();
             dcol.isTrigger = true;
-            dcol.size = dsr.sprite.bounds.size * 0.6f;
+            // trigger reaches out in front of the door so the player stops (clear freezes time) before covering the EXIT sign
+            dcol.size = new Vector2(dsr.sprite.bounds.size.x * 0.6f, dsr.sprite.bounds.size.y * 0.6f);
+            dcol.offset = new Vector2(-dsr.sprite.bounds.size.x * 0.9f, 0f);
 
             // ---- dressing ----
             Sprite(Cat + "haz_stalactite_gray.png", "Deco_Stal1", new Vector2(4, Ceil - 0.6f), 0.5f, new Color(0.6f, 0.6f, 0.65f), -2);
@@ -212,28 +217,38 @@ public static class Level2Builder
     }
 
     // Solid ground block (layer Ground) spanning world rect [x0,x1] x [y0,y1], tiled with the floor texture.
-    static GameObject Block(string name, float x0, float x1, float y0, float y1)
+    static GameObject Block(string name, float x0, float x1, float y0, float y1, bool walkable)
     {
         const float k = 0.5f; // tile the floor texture at half size
-        var go = Sprite("", name, new Vector2((x0 + x1) * 0.5f, (y0 + y1) * 0.5f), k, Wall, 0, groundSprite);
+        var go = Sprite("", name, new Vector2((x0 + x1) * 0.5f, (y0 + y1) * 0.5f), k, Mass, -10, groundSprite);
         go.layer = LayerMask.NameToLayer("Ground");
         var sr = go.GetComponent<SpriteRenderer>();
         sr.drawMode = SpriteDrawMode.Tiled;
         sr.size = new Vector2(x1 - x0, y1 - y0) / k;
         go.AddComponent<BoxCollider2D>().size = sr.size;
+        if (walkable)
+        {
+            const float h = 1f; // lit walkable strip along the top edge
+            var top = Sprite("", name + "_Top", new Vector2((x0 + x1) * 0.5f, y1 - h * 0.5f), k, Color.white, 0, groundSprite);
+            top.transform.SetParent(go.transform, true);
+            var tsr = top.GetComponent<SpriteRenderer>();
+            tsr.drawMode = SpriteDrawMode.Tiled;
+            tsr.size = new Vector2(x1 - x0, h) / k;
+        }
         return go;
     }
 
     static GameObject Lava(string name, float x0, float x1, float y0, float yTrigTop)
     {
-        var go = Sprite("", name, new Vector2((x0 + x1) * 0.5f, (y0 + yTrigTop) * 0.5f), 1f, Orange, 4, lavaSprite);
+        const float k = 0.5f;
+        var go = Sprite("", name, new Vector2((x0 + x1) * 0.5f, (y0 + yTrigTop) * 0.5f), k, Color.white, 4, lavaSprite);
         go.layer = LayerMask.NameToLayer("Lava");
         var sr = go.GetComponent<SpriteRenderer>();
         sr.drawMode = SpriteDrawMode.Tiled;
-        sr.size = new Vector2(x1 - x0, yTrigTop - y0 + 0.15f);
+        sr.size = new Vector2(x1 - x0, yTrigTop - y0 + 0.15f) / k;
         var c = go.AddComponent<BoxCollider2D>();
         c.isTrigger = true;
-        c.size = new Vector2(x1 - x0, yTrigTop - y0);
+        c.size = new Vector2(x1 - x0, yTrigTop - y0) / k;
         return go;
     }
 }
