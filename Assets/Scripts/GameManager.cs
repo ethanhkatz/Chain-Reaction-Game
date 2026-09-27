@@ -24,6 +24,11 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    public void AdvanceLevel()
+    {
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex + 1);
+    }
+
     public void RestartScene()
     {
         //Reset time scale

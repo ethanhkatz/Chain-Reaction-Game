@@ -97,6 +97,10 @@ public class PlayerController : MonoBehaviour
         {
             GameManager.instance.GameOver();
         }
+        else if (other.CompareTag("Finish"))
+        {
+            GameManager.instance.AdvanceLevel();
+        }
     }
 
     private void AnimateCharacter()
