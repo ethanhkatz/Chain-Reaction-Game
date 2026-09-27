@@ -208,6 +208,7 @@ public static class Level4Builder
         var knock = Stalactite(name, "haz_stalactite_cyan", new Vector2(rockLeft - 2.2f, 0f), false, rock.transform, level);
         var kso = new SerializedObject(knock.GetComponent<StalactiteController>());
         kso.FindProperty("aimAtTargetWhenKnocked").boolValue = true;
+        kso.FindProperty("launchUpSpeed").floatValue = 1.5f; // near-flat throw: clears your head but stays on screen (a high lob leaves the view and is culled)
         kso.ApplyModifiedPropertiesWithoutUndo();
         var ksr = knock.GetComponent<SpriteRenderer>();
         knock.transform.position = new Vector3(knock.transform.position.x, tipY + ksr.bounds.extents.y, 0f);
@@ -250,21 +251,21 @@ public static class Level4Builder
         // the room: a low pocket in the rock
         Tiled("Secret Ceiling", "Assets/Images/Ground.png", new Vector2((SecretLeft + roomRight) / 2f, (roomCeil + 7f) / 2f), new Vector2(roomRight - SecretLeft + 1f, 7f - roomCeil), Stone, root, -10, true, ground);
         // the fake wall: the same rock as everything else, drawn in front until you walk into it
-        var cover = Tiled("Secret Cover", "Assets/Images/Ground.png", new Vector2((SecretLeft - 1f + roomRight + 1f) / 2f, 1f), new Vector2(roomRight - SecretLeft + 2f, 12f), Stone, root, 30, false, 0);
+        var cover = Tiled("Secret Cover", "Assets/Images/Ground.png", new Vector2((SecretLeft - 1f + roomRight + 1f) / 2f, 1f), new Vector2(roomRight - SecretLeft + 2f, 12f), Stone, root, 60, false, 0); // above the box (45-47) and alert
 
         // cardboard box (in front of the player, so standing at it hides you)
-        const float bx = -14.5f, bw = 2.6f, bh = 2.1f;
+        const float bx = -14.5f, bw = 3.4f, bh = 3.1f; // taller than the player so hiding reads
         var box = new GameObject("Cardboard Box").transform;
         box.SetParent(root);
         float by = FloorTop + bh / 2f;
         var ink = new Color(0.05f, 0.05f, 0.06f);
         var card = new Color(0.55f, 0.46f, 0.33f);
-        Rect("Box Outline", new Vector2(bx, by), new Vector2(bw + 0.14f, bh + 0.14f), ink, 5, box);
-        Rect("Box Body", new Vector2(bx, by), new Vector2(bw, bh), card, 6, box);
-        Rect("Box Flap Line", new Vector2(bx, by + bh / 2f - 0.35f), new Vector2(bw, 0.07f), ink, 7, box);
-        Rect("Box Tape", new Vector2(bx, by + bh / 2f - 0.17f), new Vector2(0.4f, 0.34f), new Color(0.72f, 0.64f, 0.5f), 7, box);
-        Rect("Box Handle", new Vector2(bx, by + 0.15f), new Vector2(0.55f, 0.14f), ink, 7, box);
-        Rect("Box Fold L", new Vector2(bx - bw / 2f + 0.25f, by - 0.3f), new Vector2(0.06f, 0.9f), new Color(0.45f, 0.37f, 0.26f), 7, box);
+        Rect("Box Outline", new Vector2(bx, by), new Vector2(bw + 0.14f, bh + 0.14f), ink, 45, box);
+        Rect("Box Body", new Vector2(bx, by), new Vector2(bw, bh), card, 46, box);
+        Rect("Box Flap Line", new Vector2(bx, by + bh / 2f - 0.35f), new Vector2(bw, 0.07f), ink, 47, box);
+        Rect("Box Tape", new Vector2(bx, by + bh / 2f - 0.17f), new Vector2(0.4f, 0.34f), new Color(0.72f, 0.64f, 0.5f), 47, box);
+        Rect("Box Handle", new Vector2(bx, by + 0.15f), new Vector2(0.55f, 0.14f), ink, 47, box);
+        Rect("Box Fold L", new Vector2(bx - bw / 2f + 0.25f, by - 0.3f), new Vector2(0.06f, 0.9f), new Color(0.45f, 0.37f, 0.26f), 47, box);
         var hide = box.gameObject.AddComponent<BoxCollider2D>();
         hide.isTrigger = true;
         hide.offset = new Vector2(bx, by);
@@ -284,8 +285,8 @@ public static class Level4Builder
         Rect("Dot Outline", new Vector2(0f, -0.52f), new Vector2(0.36f, 0.36f), ink, 40, alert);
         Rect("Dot", new Vector2(0f, -0.52f), new Vector2(0.22f, 0.22f), red, 41, alert);
 
-        // collectible 3 (hidden): tucked behind the box
-        Collectible("Collectible_Secret", new Vector2(bx - 0.5f, FloorTop + 0.6f), root);
+        // collectible 3 (hidden): in the corner past the box
+        Collectible("Collectible_Secret", new Vector2(SecretLeft + 1.4f, FloorTop + 1.3f), root);
 
         var secret = root.gameObject.AddComponent<Level4SecretRoom>();
         var so = new SerializedObject(secret);
