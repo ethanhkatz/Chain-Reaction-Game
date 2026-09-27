@@ -228,55 +228,69 @@ public static class Level5Builder
         var bodyArt = Deco("Warden_Body_Art", bodySprite, bodyRect.center, bodyRect.height / bodySprite.bounds.size.y,
             bodySprite == S("obj_rock_cracked_1") ? new Color(0.55f, 0.55f, 0.58f) : Color.white, -4);
         bodyArt.transform.SetParent(body, true);
-        // collision silhouette: full-width base (lower 60%), tower on the right 2/3 above it
-        BodyBox(body, "Base", bodyRect, 0f, 0f, 1f, 0.6f);
-        BodyBox(body, "Tower", bodyRect, 0.33f, 0.6f, 1f, 0.95f);
+        // collision silhouette traced from warden_body.png (fractions: x from left, y from bottom)
+        BodyBox(body, "Legs", bodyRect, 0.15f, 0f, 0.85f, 0.38f);
+        BodyBox(body, "Arms", bodyRect, 0.02f, 0.38f, 0.98f, 0.62f);
+        BodyBox(body, "Chest", bodyRect, 0.08f, 0.62f, 0.90f, 0.87f);
+        BodyBox(body, "Head", bodyRect, 0.37f, 0.87f, 0.62f, 0.99f);
 
+        // slam arm: pivots at the left shoulder, laid over the drawn arm; it swings up to telegraph a slam
         var armSprite = BossArt("warden_arm", "haz_stalactite_gray");
-        var arm = Deco("Warden_Arm", armSprite, BodyPoint(bodyRect, 0.08f, 0.85f), 3.2f / armSprite.bounds.size.y,
+        var armPivot = new GameObject("Warden_ArmPivot").transform;
+        armPivot.SetParent(body);
+        armPivot.position = BodyPoint(bodyRect, 0.15f, 0.82f);
+        float armH = 0.46f * bodyRect.height;
+        var arm = Deco("Warden_Arm", armSprite, (Vector2)armPivot.position + Vector2.down * armH / 2, armH / armSprite.bounds.size.y,
             armSprite == S("haz_stalactite_gray") ? Orange : Color.white, -3);
-        arm.transform.SetParent(body, true);
-        var tower = arm.transform;
-        var eye = Deco("Warden_Eye", S("ball_small_a"), BodyPoint(bodyRect, 0.5f, 0.8f), 0.25f, Orange, -2);
+        arm.transform.SetParent(armPivot, true);
+        var tower = armPivot;
+        var eye = Deco("Warden_Eye", S("ball_small_a"), BodyPoint(bodyRect, 0.47f, 0.905f), 0.07f, new Color(1f, 0.45f, 0.8f, 0.9f), -2); // a glint on the visor; flares white before a sweep
         eye.transform.SetParent(body, true);
         Chain(new Vector2(bodyRect.x + bodyRect.width * 0.8f, 22.5f), 2);
 
-        // cores (anchors as fractions of the body sprite: x from its left edge, y from its bottom)
+        // cores sit in the three chest sockets
         var coreSprite = BossArt("warden_core", "obj_cyan_block_small");
         var coreBroken = BossArt("warden_core_broken", "obj_cyan_block_small");
-        Vector2 headAt = BodyPoint(bodyRect, 0.66f, 0.95f), shoulderAt = BodyPoint(bodyRect, 0.16f, 0.6f), kneeAt = BodyPoint(bodyRect, 0.0f, 0.22f);
-        var coreHead = Core(body, "Core_Head", headAt + Vector2.up * 0.5f, coreSprite, coreBroken, boss);
-        var coreShoulder = Core(body, "Core_Shoulder", shoulderAt + Vector2.up * 0.5f, coreSprite, coreBroken, boss);
-        var coreKnee = Core(body, "Core_Knee", kneeAt, coreSprite, coreBroken, boss);
+        float coreSize = 0.74f;
+        Vector2 topAt = BodyPoint(bodyRect, 0.564f, 0.759f), leftAt = BodyPoint(bodyRect, 0.451f, 0.675f), rightAt = BodyPoint(bodyRect, 0.658f, 0.661f);
+        var coreTop = Core(body, "Core_Top", topAt, coreSize, coreSprite, coreBroken, boss);
+        var coreLeft = Core(body, "Core_Left", leftAt, coreSize, coreSprite, coreBroken, boss);
+        var coreRight = Core(body, "Core_Right", rightAt, coreSize, coreSprite, coreBroken, boss);
 
-        // head: button on the ledge drops the stalactite hanging over the head core
-        var stal = Deco("Warden_Stalactite", S("haz_stalactite_cyan"), new Vector2(headAt.x, 21.6f), 0.6f, Color.white, 2);
+        // setup 1 (top socket): ball onto the ledge button -> the ceiling stalactite drops and arcs into it
+        var setup1 = new GameObject("Setup_1_Stalactite").transform;
+        setup1.SetParent(root);
+        var stal = Deco("Warden_Stalactite", S("haz_stalactite_cyan"), new Vector2(topAt.x - 1.2f, 21.6f), 0.6f, Color.white, 2);
+        stal.transform.SetParent(setup1, true);
         var srb = stal.AddComponent<Rigidbody2D>();
         srb.mass = 2f;
         var scol = stal.AddComponent<BoxCollider2D>();
         scol.size = new Vector2(1.0f, 2.0f);
         var dropper = stal.AddComponent<WardenDropper>();
+        dropper.target = coreTop.transform;
+        dropper.arc = 0.4f;
+        dropper.time = 0.6f;
         stal.AddComponent<WardenStriker>().consumeOnHit = true;
         var btn = Button("Button_Warden", 110f, 10.5f, dropper);
+        btn.transform.SetParent(setup1, true);
         var bbc = btn.GetComponent<BoxCollider2D>(); // tall catch zone: the ball dragged or swung across the ledge presses it
         bbc.size = new Vector2(bbc.size.x * 1.6f, bbc.size.y * 2.5f);
         bbc.offset = new Vector2(0, bbc.size.y * 0.3f);
 
-        // shoulder: anchor post holds the crusher by a cable over a ceiling pulley
-        var crusher = Deco("Warden_Crusher", S("obj_cyan_platform"), new Vector2(shoulderAt.x, 20.4f), 0.22f, Color.white, 1);
-        crusher.layer = LayerMask.NameToLayer("Ground");
+        // setup 2 (lower-left socket): smash the anchor post -> the cable snaps and the crusher swings into it
+        var setup2 = new GameObject("Setup_2_Crusher").transform;
+        setup2.SetParent(root);
+        float crusherX = bodyRect.x - 2.5f;
+        var crusher = Deco("Warden_Crusher", S("obj_cyan_block_small"), new Vector2(crusherX, 18.9f), 1.0f, Color.white, 1);
+        crusher.transform.SetParent(setup2, true);
         var crb = crusher.AddComponent<Rigidbody2D>();
         crb.bodyType = RigidbodyType2D.Kinematic;
-        var ccol = crusher.AddComponent<BoxCollider2D>();
-        ccol.size = new Vector2(S("obj_cyan_platform").bounds.size.x * 0.92f, S("obj_cyan_platform").bounds.size.y * 0.8f);
-        var fp = crusher.AddComponent<FallingPlatform>();
-        var fso = new SerializedObject(fp);
-        fso.FindProperty("dropMass").floatValue = 6f;
-        fso.FindProperty("impactFx").objectReferenceValue = S("fx_crash");
-        fso.ApplyModifiedPropertiesWithoutUndo();
-        crusher.AddComponent<WardenStriker>();
+        crusher.AddComponent<BoxCollider2D>().size = S("obj_cyan_block_small").bounds.size * 0.9f;
+        var fp = crusher.AddComponent<FallingPlatform>(); // BreakableSupport needs one; the rope's launch overrides the fall
+        crusher.AddComponent<WardenStriker>().consumeOnHit = true;
 
         var post = Deco("Anchor_Post", S("obj_cyan_pillar"), new Vector2(118f, 9f + 1.5f), 0.5f, Color.white, 1);
+        post.transform.SetParent(setup2, true);
         post.layer = LayerMask.NameToLayer("Ground");
         var pcol = post.AddComponent<BoxCollider2D>();
         pcol.size = S("obj_cyan_pillar").bounds.size * 0.9f;
@@ -285,22 +299,33 @@ public static class Level5Builder
         sso.FindProperty("platform").objectReferenceValue = fp;
         sso.ApplyModifiedPropertiesWithoutUndo();
         var rope = new GameObject("Crusher_Cable");
-        rope.transform.SetParent(root);
-        rope.AddComponent<WardenRope>().support = sup;
+        rope.transform.SetParent(setup2);
+        var wr = rope.AddComponent<WardenRope>();
+        wr.support = sup;
+        wr.payload = crusher.GetComponent<WardenStriker>();
+        wr.target = coreLeft.transform;
         Cable(rope.transform, new Vector2(118f, 12f), new Vector2(118f, 22.3f));
-        Cable(rope.transform, new Vector2(118f, 22.3f), new Vector2(shoulderAt.x, 22.3f));
-        Cable(rope.transform, new Vector2(shoulderAt.x, 22.3f), new Vector2(shoulderAt.x, 21.1f));
-        Deco("Pulley", S("ball_small_b"), new Vector2(118f, 22.2f), 0.12f, Gray, 0);
-        Deco("Pulley", S("ball_small_b"), new Vector2(shoulderAt.x, 22.2f), 0.12f, Gray, 0);
+        Cable(rope.transform, new Vector2(118f, 22.3f), new Vector2(crusherX, 22.3f));
+        Cable(rope.transform, new Vector2(crusherX, 22.3f), new Vector2(crusherX, 19.3f));
+        Deco("Pulley", S("ball_small_b"), new Vector2(118f, 22.2f), 0.12f, Gray, 0).transform.SetParent(rope.transform, true);
+        Deco("Pulley", S("ball_small_b"), new Vector2(crusherX, 22.2f), 0.12f, Gray, 0).transform.SetParent(rope.transform, true);
 
-        // knee: a domino standing in front of the machine
-        var dom = Prefab("Assets/Prefabs/TippyRock.prefab", new Vector2(kneeAt.x - 5f, 9f + 2.63f));
+        // setup 3 (lower-right socket): the ball tips the domino onto a spring plate, which flings it into the socket
+        var setup3 = new GameObject("Setup_3_Domino").transform;
+        setup3.SetParent(root);
+        var dom = Prefab("Assets/Prefabs/TippyRock.prefab", new Vector2(bodyRect.x - 5f, 9f + 2.63f));
+        dom.transform.SetParent(setup3, true);
         dom.name = "Warden_Domino";
         dom.layer = LayerMask.NameToLayer("Ground");
         foreach (var sr in dom.GetComponentsInChildren<SpriteRenderer>()) sr.color = Cyan;
         var ds = dom.AddComponent<WardenStriker>();
         ds.respawnIfWasted = true;
-        ds.ignorePlayer = true; // walk past it and the trailing ball knocks it into the machine
+        ds.ignorePlayer = true; // walk past it and the trailing ball knocks it over
+        ds.consumeOnHit = true;
+        ds.flingTo = coreRight.transform;
+        Deco("Spring_Plate", S("obj_cyan_platform"), new Vector2(bodyRect.x - 5f, 9.1f), 0.12f, Orange, 0).transform.SetParent(setup3, true);
+        setup2.gameObject.SetActive(false);
+        setup3.gameObject.SetActive(false);
 
         // HP pips
         var pips = new SpriteRenderer[3];
@@ -316,9 +341,14 @@ public static class Level5Builder
         var so = new SerializedObject(boss);
         var cores = so.FindProperty("cores");
         cores.arraySize = 3;
-        cores.GetArrayElementAtIndex(0).objectReferenceValue = coreHead;
-        cores.GetArrayElementAtIndex(1).objectReferenceValue = coreShoulder;
-        cores.GetArrayElementAtIndex(2).objectReferenceValue = coreKnee;
+        cores.GetArrayElementAtIndex(0).objectReferenceValue = coreTop;
+        cores.GetArrayElementAtIndex(1).objectReferenceValue = coreLeft;
+        cores.GetArrayElementAtIndex(2).objectReferenceValue = coreRight;
+        var setups = so.FindProperty("setups");
+        setups.arraySize = 3;
+        setups.GetArrayElementAtIndex(0).objectReferenceValue = setup1.gameObject;
+        setups.GetArrayElementAtIndex(1).objectReferenceValue = setup2.gameObject;
+        setups.GetArrayElementAtIndex(2).objectReferenceValue = setup3.gameObject;
         var pp = so.FindProperty("pips");
         pp.arraySize = 3;
         for (int i = 0; i < 3; i++) pp.GetArrayElementAtIndex(i).objectReferenceValue = pips[i];
@@ -326,8 +356,8 @@ public static class Level5Builder
         so.FindProperty("tower").objectReferenceValue = tower;
         so.FindProperty("bodyArt").objectReferenceValue = bodyArt.GetComponent<SpriteRenderer>();
         so.FindProperty("defeatedSprite").objectReferenceValue = BossArt("warden_defeated", "obj_gray_stairs_cracked");
-        so.FindProperty("laserStartX").floatValue = kneeAt.x - 0.6f;
-        so.FindProperty("arenaMaxX").floatValue = kneeAt.x - 1f;
+        so.FindProperty("laserStartX").floatValue = bodyRect.x + 0.3f;
+        so.FindProperty("arenaMaxX").floatValue = bodyRect.x - 0.5f;
         so.FindProperty("eye").objectReferenceValue = eye.GetComponent<SpriteRenderer>();
         so.FindProperty("exitGate").objectReferenceValue = exitGate;
         so.FindProperty("ledgeX").vector2Value = new Vector2(107, 113);
@@ -357,9 +387,9 @@ public static class Level5Builder
         go.AddComponent<BoxCollider2D>().size = b - a;
     }
 
-    static WardenCore Core(Transform parent, string name, Vector2 pos, Sprite sprite, Sprite broken, WardenBoss boss)
+    static WardenCore Core(Transform parent, string name, Vector2 pos, float size, Sprite sprite, Sprite broken, WardenBoss boss)
     {
-        var go = Deco(name, sprite, pos, 1.1f / sprite.bounds.size.y, Color.white, -1);
+        var go = Deco(name, sprite, pos, size / sprite.bounds.size.y, Color.white, -1);
         go.transform.SetParent(parent, true);
         var bc = go.AddComponent<BoxCollider2D>();
         bc.size = sprite.bounds.size * 0.9f;
@@ -378,9 +408,10 @@ public static class Level5Builder
         var sr = go.AddComponent<SpriteRenderer>();
         sr.sprite = FirstSprite("Assets/Images/Ground.png");
         sr.drawMode = SpriteDrawMode.Tiled;
-        var d = b - a;
-        sr.size = new Vector2(Mathf.Max(Mathf.Abs(d.x), 0.14f), Mathf.Max(Mathf.Abs(d.y), 0.14f));
-        sr.color = new Color(0.08f, 0.08f, 0.09f);
+        var d = b - a; // drawn as a horizontal strip rotated into place (the tile only reads along its width)
+        sr.size = new Vector2(Mathf.Max(d.magnitude, 0.14f), 0.14f);
+        go.transform.rotation = Quaternion.Euler(0, 0, Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg);
+        sr.color = new Color(0.32f, 0.33f, 0.37f);
         sr.sortingOrder = -2;
     }
 

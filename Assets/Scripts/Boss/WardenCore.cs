@@ -11,6 +11,9 @@ public class WardenCore : MonoBehaviour
     public Sprite brokenSprite;
 
     public bool Broken { get; private set; }
+    public bool Vulnerable;   // shielded (dim) until the boss arms this core's setup; then it pulses
+    Vector3 baseScale;
+    bool flashing;
 
     Collider2D col;
     SpriteRenderer[] renderers;
@@ -24,6 +27,16 @@ public class WardenCore : MonoBehaviour
         renderers = GetComponentsInChildren<SpriteRenderer>();
         baseColors = new Color[renderers.Length];
         for (int i = 0; i < renderers.Length; i++) baseColors[i] = renderers[i].color;
+        baseScale = transform.localScale;
+    }
+
+    void Update()
+    {
+        if (Broken || flashing) return;
+        float pulse = Vulnerable ? 0.5f + 0.5f * Mathf.Sin(Time.time * 7f) : 0f;
+        transform.localScale = baseScale * (Vulnerable ? 1f + 0.12f * pulse : 0.92f);
+        for (int i = 0; i < renderers.Length; i++)
+            renderers[i].color = Vulnerable ? Color.Lerp(baseColors[i], Color.white, 0.35f * pulse) : baseColors[i] * new Color(0.3f, 0.33f, 0.38f, 1f);
     }
 
     void FixedUpdate()
@@ -34,7 +47,7 @@ public class WardenCore : MonoBehaviour
         for (int i = 0; i < n; i++)
         {
             var s = hits[i] != null ? hits[i].GetComponentInParent<WardenStriker>() : null;
-            if (s == null || s.Used || !s.Armed) continue;
+            if (s == null || s.Used || !s.Armed || !Vulnerable) continue;
             s.Used = true;
             Break(s);
             return;
@@ -50,6 +63,7 @@ public class WardenCore : MonoBehaviour
 
     IEnumerator Clang()
     {
+        flashing = true;
         ShellAudio.Play(ShellAudio.Sfx.Click, 0.8f);
         for (float t = 0; t < 0.18f; t += Time.deltaTime)
         {
@@ -57,6 +71,7 @@ public class WardenCore : MonoBehaviour
             yield return null;
         }
         for (int i = 0; i < renderers.Length; i++) renderers[i].color = baseColors[i];
+        flashing = false;
     }
 
     void Break(WardenStriker s)
@@ -74,7 +89,7 @@ public class WardenCore : MonoBehaviour
 
     IEnumerator Shatter()
     {
-        Vector3 s0 = transform.localScale;
+        Vector3 s0 = baseScale;
         for (float t = 0; t < 0.35f; t += Time.deltaTime)
         {
             float k = t / 0.35f;
