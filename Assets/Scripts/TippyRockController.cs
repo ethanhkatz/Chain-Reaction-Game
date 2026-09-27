@@ -5,18 +5,16 @@ public class TippyRockController : MonoBehaviour
     private Rigidbody2D rb;
     private bool isLocked = false;
     [HideInInspector] public bool ballHasHit = false;
-    private float originalGravityScale; // Remembers your default gravity setting
+    private float originalGravityScale;
     
     [Header("Tip Settings")]
-    [SerializeField] private float immediateTipSpeed = -15f; // Increase this value to spin faster (e.g., -15f or -20f)
-    [SerializeField] private float fallGravityMultiplier = 3f;  // Multiplies gravity while tipping to snap down faster
+    [SerializeField] private float immediateTipSpeed = -15f; 
+    [SerializeField] private float fallGravityMultiplier = 3f;  
 
     void Start() 
     {
         rb = GetComponent<Rigidbody2D>();
         rb.constraints = RigidbodyConstraints2D.FreezePositionX | RigidbodyConstraints2D.FreezeRotation;
-        
-        // Save the rock's starting gravity scale
         originalGravityScale = rb.gravityScale;
     }
 
@@ -34,7 +32,8 @@ public class TippyRockController : MonoBehaviour
     {
         if (collision.gameObject.CompareTag("Ball")) 
         {
-            float direction = collision.transform.position.x < transform.position.x ? 1f : -1f;
+            // INVERTED LOGIC: If ball is to the left, tip RIGHT (-1f). If ball is to the right, tip LEFT (1f).
+            float direction = collision.transform.position.x < transform.position.x ? -1f : 1f;
             UnfreezeRock(direction);
             return;
         }
@@ -42,6 +41,7 @@ public class TippyRockController : MonoBehaviour
         TippyRockController otherRock = collision.gameObject.GetComponent<TippyRockController>();
         if (otherRock != null && otherRock.ballHasHit) 
         {
+            // Domino chain reaction follows the same flow direction
             float direction = Mathf.Sign(otherRock.rb.angularVelocity);
             UnfreezeRock(direction);
         }
@@ -54,14 +54,11 @@ public class TippyRockController : MonoBehaviour
         
         rb.constraints = RigidbodyConstraints2D.None; 
         
-        // 1. Instantly set a much higher rotation speed
+        // Sets the speed instantly away from the impact direction
         rb.angularVelocity = Mathf.Abs(immediateTipSpeed) * directionSign;
-
-        // 2. Turn up gravity so it pulls the falling rock downward faster
         rb.gravityScale = originalGravityScale * fallGravityMultiplier;
     }
     
-    // Optional: Reset gravity if the rock lands and you want it heavy/stable
     private void OnCollisionStay2D(Collision2D collision)
     {
         if (ballHasHit && collision.gameObject.CompareTag("Ground"))
