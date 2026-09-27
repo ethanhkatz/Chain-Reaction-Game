@@ -343,7 +343,7 @@ public class JamAtmosphere : MonoBehaviour
         var sr = MakeSprite("Crash", cfg.crash, cfg.unlitSprite, 30, Color.white);
         sr.transform.position = new Vector3(pos.x, pos.y, 0);
         sr.transform.rotation = Quaternion.Euler(0, 0, Random.Range(-15f, 15f));
-        float target = 2.6f / Mathf.Max(0.01f, cfg.crash.bounds.size.x);
+        float target = 3.4f / Mathf.Max(0.01f, cfg.crash.bounds.size.x);
         const float dur = 0.32f;
         for (float t = 0; t < dur; t += Time.unscaledDeltaTime)
         {
