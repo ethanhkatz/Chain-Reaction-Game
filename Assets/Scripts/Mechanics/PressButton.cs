@@ -29,6 +29,7 @@ public class PressButton : MonoBehaviour
     public void Press()
     {
         pressed = true;
+        ChainEvents.Report(transform.position, "button");
         if (pressedSprite != null && TryGetComponent(out SpriteRenderer sr)) sr.sprite = pressedSprite;
         foreach (var t in targets)
             if (t is IActivatable a) a.Activate();
