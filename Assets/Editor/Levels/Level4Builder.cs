@@ -13,8 +13,9 @@ public static class Level4Builder
     const float FloorTop = -4.77f;
 
     static readonly Color Cyan = new Color(0.36f, 0.95f, 0.84f);
-    static readonly Color Stone = new Color(0.42f, 0.42f, 0.46f);
-    static readonly Color DarkStone = new Color(0.2f, 0.2f, 0.23f);
+    static readonly Color Stone = new Color(0.22f, 0.23f, 0.26f); // terrain standard: non-walkable mass
+    static readonly Color DarkStone = Stone;
+    static readonly Color Hazard = new Color(1f, 0.478f, 0.165f); // #FF7A2A: orange = kills you
 
     public static void Build()
     {
@@ -45,11 +46,8 @@ public static class Level4Builder
         var level = new GameObject("Level4").transform;
 
         // --- backdrop ---
-        for (int i = 0; i < 5; i++)
-        {
-            var bg = Sprite("Background " + i, "env_background_prison_blur", new Vector2(-36.5f + i * 32.5f, 0f), 1.2f, level, -100);
-            bg.GetComponent<SpriteRenderer>().color = new Color(0.36f, 0.36f, 0.4f);
-        }
+        var bg = Sprite("Background", "env_background_prison_blur", new Vector2(22f, 0f), 3.2f, level, -100);
+        bg.GetComponent<SpriteRenderer>().color = new Color(0.36f, 0.36f, 0.4f);
 
         // --- floor, bedrock, ceiling, walls ---
         var floorPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Floor.prefab");
@@ -60,10 +58,10 @@ public static class Level4Builder
         floor.GetComponent<SpriteRenderer>().size = new Vector2(60f, 1f);
         floor.GetComponent<BoxCollider2D>().size = new Vector2(60f, 1f);
 
-        Tiled("Bedrock", "Assets/Images/Ground.png", new Vector2(22f, FloorTop - 7f), new Vector2(130f, 12f), DarkStone, level, -1, false, 0);
-        Tiled("Ceiling", "Assets/Images/Ground.png", new Vector2(22f, 9.5f), new Vector2(130f, 6f), DarkStone, level, -1, false, 0);
-        Tiled("Wall Left", "Assets/Images/Ground.png", new Vector2(-6.5f, 2f), new Vector2(3f, 16f), Stone, level, 0, true, ground);
-        Tiled("Wall Right", "Assets/Images/Ground.png", new Vector2(51.5f, 2f), new Vector2(3f, 16f), Stone, level, 0, true, ground);
+        Tiled("Bedrock", "Assets/Images/Ground.png", new Vector2(22f, FloorTop - 13f), new Vector2(130f, 24f), DarkStone, level, -10, false, 0);
+        Tiled("Ceiling", "Assets/Images/Ground.png", new Vector2(22f, 9.5f), new Vector2(130f, 6f), DarkStone, level, -10, false, 0);
+        Tiled("Wall Left", "Assets/Images/Ground.png", new Vector2(-6.5f, 2f), new Vector2(3f, 16f), Stone, level, -10, true, ground);
+        Tiled("Wall Right", "Assets/Images/Ground.png", new Vector2(51.5f, 2f), new Vector2(3f, 16f), Stone, level, -10, true, ground);
 
         // --- spawn ---
         var player = GameObject.Find("Player");
@@ -80,9 +78,9 @@ public static class Level4Builder
         note.GetComponent<SpriteRenderer>().color = new Color(0.85f, 0.85f, 0.85f);
 
         // --- beat 1: stalactites drop as you pass; keep moving ---
-        Stalactite("Stalactite Drop A", "haz_stalactite_gray", new Vector2(9f, 5.45f), true, null, level);
-        Stalactite("Stalactite Drop B", "haz_stalactite_gray", new Vector2(14f, 5.45f), true, null, level);
-        Stalactite("Stalactite Drop C", "haz_stalactite_gray", new Vector2(17.5f, 5.45f), true, null, level);
+        Tint(Stalactite("Stalactite Drop A", "haz_stalactite_gray", new Vector2(9f, 5.45f), true, null, level), Hazard);
+        Tint(Stalactite("Stalactite Drop B", "haz_stalactite_gray", new Vector2(14f, 5.45f), true, null, level), Hazard);
+        Tint(Stalactite("Stalactite Drop C", "haz_stalactite_gray", new Vector2(17.5f, 5.45f), true, null, level), Hazard);
 
         // --- beat 2: knock a stalactite loose with the ball onto the cracked rock ---
         var rock = Sprite("Cracked Rock", "obj_rock_cracked_1", Vector2.zero, 0.55f, level, 0);
@@ -103,7 +101,7 @@ public static class Level4Builder
         var ksr = knock.GetComponent<SpriteRenderer>();
         knock.transform.position = new Vector3(knock.transform.position.x, tipY + ksr.bounds.extents.y, 0f);
         var outcropBottom = ksr.bounds.max.y;
-        Tiled("Outcrop", "Assets/Images/Ground.png", new Vector2(knock.transform.position.x, (outcropBottom + 6.5f) / 2f), new Vector2(2.4f, 6.5f - outcropBottom), Stone, level, -1, false, 0);
+        Tiled("Outcrop", "Assets/Images/Ground.png", new Vector2(knock.transform.position.x, (outcropBottom + 6.5f) / 2f), new Vector2(2.4f, 6.5f - outcropBottom), Stone, level, -10, false, 0);
 
         // --- beat 3: lure a stalactite onto the button to open the gate ---
         var pedestal = Sprite("Button Pedestal", "obj_cyan_block_small", Vector2.zero, 0.5f, level, 0);
@@ -123,7 +121,7 @@ public static class Level4Builder
         gate.transform.position = new Vector3(41f, FloorTop + gsr.bounds.extents.y, 0f);
         gate.AddComponent<BoxCollider2D>().sharedMaterial = Slick();
         var gateComp = gate.AddComponent<Gate>();
-        Tiled("Gate Housing", "Assets/Images/Ground.png", new Vector2(41f, (gsr.bounds.max.y + 6.5f) / 2f), new Vector2(2f, 6.5f - gsr.bounds.max.y), Stone, level, 0, true, ground);
+        Tiled("Gate Housing", "Assets/Images/Ground.png", new Vector2(41f, (gsr.bounds.max.y + 6.5f) / 2f), new Vector2(2f, 6.5f - gsr.bounds.max.y), Stone, level, -10, true, ground);
 
         var so = new SerializedObject(press);
         var targets = so.FindProperty("targets");
@@ -132,18 +130,18 @@ public static class Level4Builder
         so.FindProperty("pressedSprite").objectReferenceValue = LoadSprite("obj_button_red");
         so.ApplyModifiedPropertiesWithoutUndo();
 
-        Stalactite("Stalactite Button", "haz_stalactite_cyan", new Vector2(35f, 5.45f), true, button.transform, level);
+        Tint(Stalactite("Stalactite Button", "haz_stalactite_gray", new Vector2(35f, 5.45f), true, button.transform, level), Hazard);
 
         // --- beat 4: exit ---
         var exit = Sprite("Exit Door", "obj_exit_door_glow", Vector2.zero, 0.5f, level, -2);
         var esr = exit.GetComponent<SpriteRenderer>();
-        exit.transform.position = new Vector3(47f, FloorTop + esr.bounds.extents.y, 0f);
+        exit.transform.position = new Vector3(46.5f, FloorTop + esr.bounds.extents.y, 0f);
         exit.tag = "Finish";
         var ecol = exit.AddComponent<BoxCollider2D>();
         ecol.isTrigger = true;
 
         // --- dressing ---
-        foreach (var x in new[] { -3f, 20f, 31f, 44.5f })
+        foreach (var x in new[] { -3f, 20f, 31f })
         {
             var p = Sprite("Pillar", "obj_cyan_pillar", Vector2.zero, 0.6f, level, -10);
             var sr = p.GetComponent<SpriteRenderer>();
@@ -179,6 +177,12 @@ public static class Level4Builder
             AssetDatabase.CreateAsset(m, SlickPath);
         }
         return m;
+    }
+
+    static GameObject Tint(GameObject go, Color c)
+    {
+        go.GetComponent<SpriteRenderer>().color = c;
+        return go;
     }
 
     static void SetField(UnityEngine.Object o, string field, float v)
