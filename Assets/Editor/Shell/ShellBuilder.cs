@@ -77,6 +77,7 @@ public static class ShellBuilder
         art.chainLink1 = S("obj_chain_link_1");
         art.chainLink2 = S("obj_chain_link_2");
         art.crash = S("fx_crash");
+        art.credits = Gen("credits_screen");
         art.ballSkins = new[] { S("ball_big_happy_cyan"), S("ball_big_pink"), Gen("skin_ball_gold"), Gen("skin_ball_disco"), Gen("skin_ball_magma") };
         art.footsteps = Clip("sfx_footsteps_run.wav", false);
         art.jump = Clip("sfx_jump.wav", false);
@@ -147,7 +148,7 @@ public static class ShellBuilder
         canvasGo.AddComponent<GraphicRaycaster>();
         canvasGo.AddComponent<CanvasGroup>();
         var fade = canvasGo.AddComponent<UIFadeIn>();
-        fade.duration = 1.8f;
+        fade.duration = 0.9f;
         var ctrl = canvasGo.AddComponent<EndingController>();
 
         var bg = Rect("Background", canvasGo.transform);
@@ -171,80 +172,67 @@ public static class ShellBuilder
         vimg.sprite = VignetteSprite();
         vimg.raycastTarget = false;
 
-        var poster = Rect("Poster", canvasGo.transform);
-        poster.anchorMin = poster.anchorMax = new Vector2(0.5f, 0.5f);
-        poster.anchoredPosition = new Vector2(-520, 10);
-        poster.sizeDelta = new Vector2(780, 740);
+        // Everything but the backdrop sits in Content so the stamp can shake it.
+        var content = Rect("Content", canvasGo.transform);
+        content.anchorMin = Vector2.zero; content.anchorMax = Vector2.one; content.offsetMin = content.offsetMax = Vector2.zero;
+        ctrl.content = content;
+
+        var poster = Place(Rect("Poster", content), new Vector2(-540, 190), new Vector2(620, 587), -4f);
         var pimg = poster.gameObject.AddComponent<Image>();
         pimg.sprite = S("story_ending_adieu_poster");
         pimg.preserveAspect = true;
         pimg.raycastTarget = false;
         var sh = poster.gameObject.AddComponent<Shadow>();
-        sh.effectColor = new Color(0, 0, 0, 0.6f); sh.effectDistance = new Vector2(10, -12);
+        sh.effectColor = new Color(0, 0, 0, 0.6f); sh.effectDistance = new Vector2(12, -14);
         ctrl.poster = poster;
 
-        var shadowMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Drop Shadow.mat");
+        // Headline lettering is made at runtime (comic outline material); this is where it goes.
+        ctrl.headlineAnchor = Place(Rect("Headline", content), new Vector2(-530, -150), new Vector2(760, 120), 4f);
 
-        var textGroup = Rect("Story", canvasGo.transform);
-        textGroup.anchorMin = textGroup.anchorMax = new Vector2(0.5f, 0.5f);
-        textGroup.anchoredPosition = new Vector2(190, 170);
-        textGroup.sizeDelta = new Vector2(600, 460);
-        textGroup.gameObject.AddComponent<CanvasGroup>();
-        var tf = textGroup.gameObject.AddComponent<UIFadeIn>();
-        tf.delay = 1.4f; tf.duration = 1.4f;
-
-        var head = Text(textGroup, "YOU BROKE OUT.", 60, new Vector2(0, 150), new Vector2(600, 90), new Color(0.36f, 0.95f, 0.84f));
-        head.fontStyle = FontStyles.Bold;
-        head.characterSpacing = 2f;
-        head.textWrappingMode = TextWrappingModes.NoWrap;
-        if (shadowMat != null) head.fontSharedMaterial = shadowMat;
-        var body = Text(textGroup, "The kingdom will have to find another soldier.\n\nYou kept the ball.\nIt seems to like you.", 38,
-            new Vector2(0, -60), new Vector2(600, 260), new Color(0.95f, 0.95f, 0.97f));
-        body.fontStyle = FontStyles.Bold;
-        body.lineSpacing = 8f;
-        if (shadowMat != null) body.fontSharedMaterial = shadowMat;
-
-        var btnRt = Rect("ReturnToTitleButton", canvasGo.transform);
-        btnRt.anchorMin = btnRt.anchorMax = new Vector2(0.5f, 0.5f);
-        btnRt.anchoredPosition = new Vector2(190, -250);
-        btnRt.sizeDelta = new Vector2(540, 170);
-        var bimg = btnRt.gameObject.AddComponent<Image>();
-        bimg.sprite = S("ui_btn_returntitle_cyan");
-        bimg.preserveAspect = true;
-        var btn = btnRt.gameObject.AddComponent<Button>();
-        btn.targetGraphic = bimg;
-        UnityEventTools.AddPersistentListener(btn.onClick, ctrl.ReturnToTitle);
-        btnRt.gameObject.AddComponent<CanvasGroup>();
-        var bf = btnRt.gameObject.AddComponent<UIFadeIn>();
-        bf.delay = 2.6f; bf.duration = 1f;
-
-        var credits = "Assets/Audio/CREDITS.txt";
-        if (System.IO.File.Exists(credits))
+        // Release form: 700x940, rows measured off the art (header ~19%, rows at 31/41/51/62/72%, notes ~83%).
+        const float FW = 700f, FH = 940f;
+        var form = Place(Rect("ReleaseForm", content), new Vector2(290, 25), new Vector2(FW, FH), 1.5f);
+        var fimg = form.gameObject.AddComponent<Image>();
+        fimg.sprite = Gen("ui_release_form");
+        fimg.raycastTarget = false;
+        var fsh = form.gameObject.AddComponent<Shadow>();
+        fsh.effectColor = new Color(0, 0, 0, 0.55f); fsh.effectDistance = new Vector2(12, -14);
+        float Y(float p) => FH * 0.5f - p * FH;
+        var comic = Resources.Load<TMP_FontAsset>("ComicFont");
+        var ink = new Color(0.1f, 0.1f, 0.13f);
+        var hdr = Text(form, "INMATE RELEASE FORM", 46, new Vector2(0, Y(0.19f)), new Vector2(FW * 0.78f, 70), new Color(0.93f, 0.96f, 0.95f));
+        hdr.font = comic;
+        hdr.characterSpacing = 4f;
+        string[] labels = { "TIME SERVED", "PROPERTY DAMAGE", "CONTRABAND", "BEST CHAIN", "PAROLE RATING" };
+        float[] rows = { 0.31f, 0.41f, 0.51f, 0.62f, 0.72f };
+        ctrl.rowValues = new TextMeshProUGUI[labels.Length];
+        for (int i = 0; i < labels.Length; i++)
         {
-            var col = Rect("Credits", canvasGo.transform);
-            col.anchorMin = col.anchorMax = new Vector2(0.5f, 0.5f);
-            col.anchoredPosition = new Vector2(720, 0);
-            col.sizeDelta = new Vector2(380, 760);
-            col.gameObject.AddComponent<CanvasGroup>();
-            var cf = col.gameObject.AddComponent<UIFadeIn>();
-            cf.delay = 3.2f; cf.duration = 1.2f;
-            var bar = Rect("Rule", col);
-            bar.anchorMin = new Vector2(0, 0.1f); bar.anchorMax = new Vector2(0, 0.9f);
-            bar.sizeDelta = new Vector2(3, 0); bar.anchoredPosition = new Vector2(-20, 0);
-            bar.gameObject.AddComponent<Image>().color = new Color(0.36f, 0.95f, 0.84f, 0.5f);
-
-            var lines = System.IO.File.ReadAllLines(credits).Skip(1).Where(l => l.Trim().Length > 0)
-                .Select(l => System.Text.RegularExpressions.Regex.Replace(l.Trim().TrimStart('-', ' '), @"\w+\.(wav|mp3):?\s*", ""))
-                .Select(l => l.Replace("\u3084\u308b\u6c17\u30bc\u30ed", "Yaruki Zero").Replace(", ", ",  ").Trim());
-            var ct = Text(col, "<size=24><b><color=#5CF2D6>SOUND & MUSIC</color></b></size>\n\n" + string.Join("\n\n", lines), 18,
-                Vector2.zero, new Vector2(380, 760), new Color(1f, 1f, 1f, 0.72f));
-            ct.alignment = TextAlignmentOptions.MidlineLeft;
-            ct.fontStyle = FontStyles.Bold;
-            ct.textWrappingMode = TextWrappingModes.Normal;
+            var lab = Text(form, labels[i], 21, new Vector2(-FW * 0.335f, Y(rows[i])), new Vector2(FW * 0.17f, 62), ink);
+            lab.font = comic;
+            lab.enableAutoSizing = true; lab.fontSizeMin = 12; lab.fontSizeMax = 21;
+            lab.lineSpacing = -18f;
+            var val = Text(form, "\u2014", 40, new Vector2(FW * 0.13f, Y(rows[i])), new Vector2(FW * 0.6f, 62), ink);
+            val.alignment = TextAlignmentOptions.MidlineLeft;
+            val.characterSpacing = 3f;
+            val.name = "Value " + labels[i];
+            ctrl.rowValues[i] = val;
         }
+        var notes = Text(form, "NOTES: <i>kept the ball. it seems to like you.</i>", 27, new Vector2(-FW * 0.04f, Y(0.83f)), new Vector2(FW * 0.8f, 60),
+            new Color(0.16f, 0.24f, 0.55f));
+        notes.font = comic;
+        notes.alignment = TextAlignmentOptions.MidlineLeft;
+        notes.rectTransform.localRotation = Quaternion.Euler(0, 0, 2.5f);
+
+        var stamp = Place(Rect("Stamp", content), new Vector2(470, -150), new Vector2(450, 203), -12f);
+        var simg = stamp.gameObject.AddComponent<Image>();
+        simg.sprite = Gen("ui_stamp_released");
+        simg.preserveAspect = true;
+        simg.raycastTarget = false;
+        stamp.gameObject.AddComponent<CanvasGroup>();
+        ctrl.stamp = stamp;
 
         var es = new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
-        es.GetComponent<EventSystem>().firstSelectedGameObject = btnRt.gameObject;
 
         EditorSceneManager.SaveScene(scene, "Assets/Scenes/EndingScene.unity");
     }
@@ -276,6 +264,15 @@ public static class ShellBuilder
             imp.SaveAndReimport();
         }
         return AssetDatabase.LoadAssetAtPath<Sprite>(path);
+    }
+
+    static RectTransform Place(RectTransform rt, Vector2 pos, Vector2 size, float rot)
+    {
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = pos;
+        rt.sizeDelta = size;
+        rt.localRotation = Quaternion.Euler(0, 0, rot);
+        return rt;
     }
 
     static TextMeshProUGUI Text(Transform parent, string s, float size, Vector2 pos, Vector2 box, Color c)

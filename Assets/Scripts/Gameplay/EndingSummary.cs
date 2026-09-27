@@ -11,6 +11,8 @@ public class EndingSummary : MonoBehaviour
 
     void Start()
     {
+        // The shell's release form already shows the run stats as prison paperwork.
+        if (FindAnyObjectByType<EndingController>() != null) { Destroy(gameObject); return; }
         int coll = 0, total = 0, best = 0;
         float time = 0f;
         if (LevelStats.Session.Count > 0)

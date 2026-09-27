@@ -14,6 +14,9 @@ public class ShellArt : ScriptableObject
     public Sprite chainLink2;
     public Sprite crash;
 
+    [Header("Credits (full-screen team art)")]
+    public Sprite credits;
+
     [Header("Ball skins (index = PlayerPrefs ballSkin)")]
     public Sprite[] ballSkins;
 
