@@ -5,7 +5,7 @@ public class JamBallImpact : MonoBehaviour
 {
     public float puffSpeed = 3.5f;
     public float bigSpeed = 6.5f;
-    float cooldown;
+    float cooldown, bigCooldown;
 
     void OnCollisionEnter2D(Collision2D c)
     {
@@ -17,8 +17,10 @@ public class JamBallImpact : MonoBehaviour
         Vector2 p = c.contactCount > 0 ? c.GetContact(0).point : (Vector2)transform.position;
         JamAtmosphere.Puff(p, Mathf.Clamp((int)(v * 1.2f), 4, 18), Mathf.Clamp(v * 0.3f, 1f, 4f));
         JamAtmosphere.Shake(Mathf.Clamp(v * 0.025f, 0.05f, 0.35f));
-        if (v >= bigSpeed)
+        // Big hits get their own longer cooldown: riding or rolling the ball otherwise chains CRASH and hit-pause every frame.
+        if (v >= bigSpeed && Time.unscaledTime >= bigCooldown)
         {
+            bigCooldown = Time.unscaledTime + 0.6f;
             JamAtmosphere.Shake(Mathf.Clamp(v * 0.04f, 0.4f, 0.8f));
             JamAtmosphere.HitPause(0.04f);
             JamAtmosphere.Crash(p);
