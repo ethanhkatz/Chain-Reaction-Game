@@ -32,8 +32,13 @@ public static class Level5Builder
         try
         {
             Directory("Assets/Scenes/Levels");
-            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath) != null) AssetDatabase.DeleteAsset(ScenePath);
-            if (!AssetDatabase.CopyAsset("Assets/Scenes/SampleScene.unity", ScenePath)) throw new Exception("copy failed");
+            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath) != null)
+            {
+                // overwrite contents in place so the scene keeps its GUID (build settings reference it)
+                System.IO.File.Copy("Assets/Scenes/SampleScene.unity", ScenePath, true);
+                AssetDatabase.ImportAsset(ScenePath, ImportAssetOptions.ForceUpdate);
+            }
+            else if (!AssetDatabase.CopyAsset("Assets/Scenes/SampleScene.unity", ScenePath)) throw new Exception("copy failed");
             var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
 
             var keep = new HashSet<string> { "Main Camera", "Global Light 2D", "CinemachineCamera", "GameManager", "Canvas", "EventSystem", "Player", "Ball" };
