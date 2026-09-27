@@ -5,6 +5,7 @@ TagManager:
   serializedVersion: 3
   tags:
   - SpawnPoint
+  - Ball
   layers:
   - Default
   - TransparentFX
@@ -13,11 +14,14 @@ TagManager:
   - Water
   - UI
   - Ground
-  - Rock
+  - 
   - Copy
   - Lava
   - 
   - 
+  - Player
+  - Ball
+  - Rock
   - 
   - 
   - 
