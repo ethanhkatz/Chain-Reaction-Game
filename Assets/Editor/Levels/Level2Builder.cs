@@ -25,8 +25,13 @@ public static class Level2Builder
         try
         {
             System.IO.Directory.CreateDirectory("Assets/Scenes/Levels");
-            AssetDatabase.DeleteAsset(ScenePath);
-            if (!AssetDatabase.CopyAsset("Assets/Scenes/SampleScene.unity", ScenePath)) throw new Exception("copy failed");
+            // overwrite the file in place (not Delete+CopyAsset) so the scene keeps a stable guid across rebuilds
+            if (System.IO.File.Exists(ScenePath))
+            {
+                System.IO.File.Copy("Assets/Scenes/SampleScene.unity", ScenePath, true);
+                AssetDatabase.ImportAsset(ScenePath, ImportAssetOptions.ForceUpdate);
+            }
+            else if (!AssetDatabase.CopyAsset("Assets/Scenes/SampleScene.unity", ScenePath)) throw new Exception("copy failed");
             var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
 
             var lavaGo = GameObject.Find("Lava");
