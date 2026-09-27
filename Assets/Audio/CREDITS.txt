@@ -1,0 +1,6 @@
+Sound credits
+- sfx_footsteps_run.wav: "running kid heavy footsteps" by tdude9000 (freesound.org #138340)
+- sfx_jump.wav: "videogame jump" by kwahmah_02 (freesound.org #262893)
+- sfx_death_explosion.wav: "retro space explosion or death sound effect" by lilmati (freesound.org #515005)
+- sting_gameover_yarukizero.mp3: "やる気ゼロ" (source: provided by teammate)
+- music_engram.mp3 "ENGRAM", music_escape.mp3 "Escape", music_vivid_anti_ray.mp3 "Vivid anti-Ray" (source: provided by teammate)
