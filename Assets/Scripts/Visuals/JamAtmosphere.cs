@@ -27,7 +27,7 @@ public class JamAtmosphere : MonoBehaviour
     [SerializeField] List<Parallax> layers = new List<Parallax>();
     [SerializeField] List<Flicker> flicker = new List<Flicker>();
 
-    Transform playerLight, ballLight;
+    Transform playerLight, ballLight, playerHalo, ballHalo;
     Transform screenRoot;
     SpriteRenderer vignette, fog, fade;
     ParticleSystem dust, puffs;
@@ -153,13 +153,26 @@ public class JamAtmosphere : MonoBehaviour
         playerLight = MakeLight("PlayerLight", Color.Lerp(Cyan, Color.white, 0.45f), 1.1f, 1.5f, 9f, 0.5f).transform;
         if (ball != null) ballLight = MakeLight("BallLight", Cyan, 1.0f, 0.8f, 4.5f, 0.6f).transform;
 
+        // Soft halos behind player and ball so their silhouettes pop off the dark backdrop.
+        var dot = Sprite.Create((Texture2D)particleMat.mainTexture, new Rect(0, 0, 64, 64), new Vector2(0.5f, 0.5f), 64f);
+        var ph = MakeSprite("PlayerHalo", dot, cfg.unlitSprite, -1, new Color(0.85f, 0.95f, 1f, 0.16f));
+        ph.transform.localScale = Vector3.one * 4.5f;
+        playerHalo = ph.transform;
+        if (ball != null)
+        {
+            var bh = MakeSprite("BallHalo", dot, cfg.unlitSprite, -1, new Color(Cyan.r, Cyan.g, Cyan.b, 0.28f));
+            var br = ball.GetComponentInChildren<SpriteRenderer>();
+            bh.transform.localScale = Vector3.one * (br != null ? br.bounds.size.x * 2.1f : 3f);
+            ballHalo = bh.transform;
+        }
+
         foreach (var r in FindObjectsByType<Renderer>(FindObjectsSortMode.None))
         {
             if (r.gameObject.layer != LavaLayer || r is ParticleSystemRenderer) continue;
             if (r.GetComponentInParent<PlayerController>() != null) continue;
             var b = r.bounds;
             float rad = Mathf.Clamp(Mathf.Max(b.size.x, b.size.y) * 0.8f + 2f, 3f, 14f);
-            var l = MakeLight("HazardGlow", Orange, 1.1f, rad * 0.25f, rad, 0.6f);
+            var l = MakeLight("HazardGlow", Orange, 1.8f, rad * 0.3f, rad, 0.5f);
             l.transform.position = new Vector3(b.center.x, b.max.y, 0);
             flicker.Add(new Flicker { light = l, baseIntensity = l.intensity, seed = Random.value * 10f });
             SpawnEmbers(b);
@@ -221,7 +234,7 @@ public class JamAtmosphere : MonoBehaviour
         pm.startLifetime = new ParticleSystem.MinMaxCurve(0.35f, 0.7f);
         pm.startSpeed = 0f;
         pm.gravityModifier = -0.05f;
-        pm.startColor = new Color(0.62f, 0.64f, 0.66f, 0.7f);
+        pm.startColor = new Color(0.72f, 0.75f, 0.77f, 0.85f);
         var pem = puffs.emission; pem.enabled = false;
         var sol = puffs.sizeOverLifetime; sol.enabled = true; sol.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0, 0.5f, 1, 1.6f));
         var lim = puffs.limitVelocityOverLifetime; lim.enabled = true; lim.dampen = 0.25f; lim.limit = 0.3f;
@@ -313,7 +326,7 @@ public class JamAtmosphere : MonoBehaviour
             float a = Random.Range(0.1f, Mathf.PI - 0.1f);
             ep.position = pos + Random.insideUnitCircle * 0.15f;
             ep.velocity = new Vector3(Mathf.Cos(a), Mathf.Sin(a) * 0.6f, 0) * Random.Range(0.5f, 1.2f) * strength;
-            ep.startSize = Random.Range(0.25f, 0.55f) * Mathf.Lerp(0.8f, 1.6f, Mathf.Clamp01(strength / 4f));
+            ep.startSize = Random.Range(0.5f, 1.0f) * Mathf.Lerp(0.8f, 1.8f, Mathf.Clamp01(strength / 4f));
             ep.startLifetime = Random.Range(0.35f, 0.75f);
             Instance.puffs.Emit(ep, 1);
         }
@@ -358,6 +371,8 @@ public class JamAtmosphere : MonoBehaviour
 
         if (playerLight != null) playerLight.position = player.position + Vector3.up * 0.5f;
         if (ballLight != null && ball != null) ballLight.position = ball.position;
+        if (playerHalo != null) playerHalo.position = player.position + Vector3.up * 0.3f;
+        if (ballHalo != null && ball != null) ballHalo.position = ball.position;
 
         float time = Time.unscaledTime;
         foreach (var f in flicker)

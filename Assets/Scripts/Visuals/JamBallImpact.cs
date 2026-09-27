@@ -3,8 +3,8 @@ using UnityEngine;
 // Added to the Ball at runtime: turns hard hits into shake, dust, hit-pause and a crash pop.
 public class JamBallImpact : MonoBehaviour
 {
-    public float puffSpeed = 4f;
-    public float bigSpeed = 9f;
+    public float puffSpeed = 3.5f;
+    public float bigSpeed = 6.5f;
     float cooldown;
 
     void OnCollisionEnter2D(Collision2D c)
