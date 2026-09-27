@@ -21,7 +21,7 @@ public static class Level5Builder
     const string Cat = "Assets/Art/Catalog/";
 
     static readonly Color Gray = new Color(0.46f, 0.47f, 0.52f);
-    static readonly Color DarkGray = new Color(0.28f, 0.29f, 0.33f);
+    static readonly Color DarkGray = new Color(0.22f, 0.23f, 0.26f); // non-walkable mass (terrain standard)
     static readonly Color Cyan = new Color(0.36f, 0.95f, 0.84f);
     static readonly Color Orange = new Color(1f, 0.55f, 0.18f);
 
@@ -72,11 +72,11 @@ public static class Level5Builder
             Deco("Backdrop", bg, new Vector2(-6 + i * 27.3f, 8f), 1f, new Color(0.24f, 0.24f, 0.27f), -100);
 
         // ---------- A: cell block (floor top y=0) ----------
-        Solid("Wall_Left", -11, -4, -8, 22);
-        Solid("Floor_A", -11, -4, 6, 0);
-        Solid("Trench_Bed", 6, -4, 9f, -0.35f);
+        Solid("Wall_Left", -11, -20, -8, 22, DarkGray);
+        Solid("Floor_A", -11, -20, 6, 0);
+        Solid("Trench_Bed", 6, -20, 9f, -0.35f);
         Lava("Lava_Trench", 6, -0.35f, 9f, -0.05f);
-        Solid("Floor_B", 9f, -4, 29, 0);
+        Solid("Floor_B", 9f, -20, 29, 0);
         Solid("Ceiling_AB", -11, 8, 27, 10, DarkGray);
         Deco("Note", S("story_note_training"), new Vector2(-4.5f, 4.2f), 0.3f, new Color(0.8f, 0.8f, 0.8f), -5);
         Chain(new Vector2(3, 8), 3);
@@ -90,7 +90,7 @@ public static class Level5Builder
         var rock = Prefab("Assets/Prefabs/BreakableRockStair.prefab", new Vector2(27.75f, 1.81f));
         rock.name = "CrackedBoulder";
         rock.transform.localScale = new Vector3(-1, 1, 1); // stairs sprite climbs to the left; mirror it to climb right
-        Solid("Gallery_Floor", 29, -4, 60, 3.5f);
+        Solid("Gallery_Floor", 29, -20, 60, 3.5f);
         Solid("Ceiling_Gallery", 27, 16, 58, 18, DarkGray);
         Solid("Pillar_CeilingStep", 27, 10, 29, 16, DarkGray);
 
@@ -129,13 +129,13 @@ public static class Level5Builder
         Chain(new Vector2(49, 16), 3);
 
         // ---------- E: the climb to the exit ----------
-        Solid("Floor_E", 60, -4, 106, 3.5f);
+        Solid("Floor_E", 60, -20, 106, 3.5f);
         Solid("Ceiling_E", 58, 20, 106, 22, DarkGray);
-        Solid("Wall_Right", 103, -4, 106, 22);
-        CyanBlock("Step_1", 69f, 6.0f);
-        CyanBlock("Step_2", 73f, 8.5f);
-        Solid("Catwalk_1", 75.5f, 10.2f, 86f, 11f);
-        Solid("Catwalk_2", 88.2f, 10.2f, 103f, 11f);
+        Solid("Wall_Right", 103, -20, 106, 22, DarkGray);
+        CyanBlock("Step_1", 68.5f, 5.3f);
+        CyanBlock("Step_2", 72.3f, 7.2f);
+        Solid("Catwalk_1", 75.5f, 8.2f, 86f, 9f);
+        Solid("Catwalk_2", 88.2f, 8.2f, 103f, 9f);
 
         // the ceiling gives way as you leap the gap: stalactite falls through it and smashes the rock below
         var target = new GameObject("Rubble_Target");
@@ -152,22 +152,22 @@ public static class Level5Builder
         stal.name = "Stalactite_Gap";
         stal.transform.localScale = Vector3.one * 1.3f;
         var ssr = stal.GetComponent<SpriteRenderer>();
-        if (ssr != null) ssr.color = Orange;
+        if (ssr != null) ssr.color = new Color(1f, 0.3f, 0.12f); // orange-red hazard
         Lava("Lava_Pit_E", 76, 3.5f, 86, 4.1f);
         Solid("Pit_Bed", 76, 3.0f, 86, 3.5f);
 
         var door = new GameObject("ExitDoor");
         door.transform.SetParent(root);
         door.tag = "Finish";
-        door.transform.position = new Vector3(99.5f, 11f + 2.55f, 0);
+        door.transform.position = new Vector3(99.5f, 9f + 2.55f, 0);
         door.transform.localScale = Vector3.one * 0.5f;
         var dsr = door.AddComponent<SpriteRenderer>();
         dsr.sprite = S("obj_exit_door_glow");
-        dsr.sortingOrder = 2;
+        dsr.sortingOrder = -1; // below player/ball, above terrain
         var dcol = door.AddComponent<BoxCollider2D>();
         dcol.isTrigger = true;
         dcol.size = new Vector2(dsr.sprite.bounds.size.x * 0.6f, dsr.sprite.bounds.size.y * 0.9f);
-        Deco("Exit_Glow", S("fx_crash"), new Vector2(99.5f, 13.5f), 0.35f, new Color(1, 1, 1, 0.12f), 1);
+        Deco("Exit_Glow", S("fx_crash"), new Vector2(99.5f, 11.5f), 0.35f, new Color(1, 1, 1, 0.12f), -3);
 
         // ---------- spawn ----------
         var player = GameObject.Find("Player");
@@ -246,8 +246,24 @@ public static class Level5Builder
 
     static GameObject Solid(string name, float x0, float y0, float x1, float y1, Color c)
     {
-        var go = Block(name, x0, y0, x1, y1, c);
+        // Terrain standard: the whole block is dark mass at order -10; walkable blocks (default Gray) get a
+        // 1-unit strip of untinted riveted floor art along their top edge so the playable surface pops.
+        bool walkable = c == Gray;
+        var go = Block(name, x0, y0, x1, y1, DarkGray);
+        go.GetComponent<SpriteRenderer>().sortingOrder = -10;
         go.layer = LayerMask.NameToLayer("Ground");
+        if (walkable)
+        {
+            float h = Mathf.Min(1f, y1 - y0);
+            var top = new GameObject("Surface");
+            top.transform.SetParent(go.transform);
+            top.transform.position = new Vector3((x0 + x1) / 2, y1 - h / 2, 0);
+            var tsr = top.AddComponent<SpriteRenderer>();
+            tsr.sprite = FirstSprite("Assets/Images/Ground.png");
+            tsr.drawMode = SpriteDrawMode.Tiled;
+            tsr.size = new Vector2(x1 - x0, h);
+            tsr.sortingOrder = -9;
+        }
         var rb = go.AddComponent<Rigidbody2D>();
         rb.bodyType = RigidbodyType2D.Static;
         return go;
