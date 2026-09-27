@@ -275,52 +275,11 @@ public static class Level2Builder
         wire.transform.position = new Vector3(113.25f, 0.2f, 0);
 
         // ---- secret shelf: only reachable by standing on a rock piece pushed against the curb ----
-        var secret = new GameObject("Secret_ToBeContinued").transform;
+        var secret = new GameObject("Secret_Shelf").transform;
         secret.SetParent(root, false);
         var shelf = Block("SecretShelf", 70.6f, 75.4f, 5.1f, 5.6f, true);
         shelf.transform.SetParent(secret, true);
         Collectible("Collectible_SecretShelf", new Vector2(74.3f, 6.5f), secret);
-
-        // "To Be Continued" arrow: a toppled domino as the shaft, two small ones as the head, pointing back left
-        var arrow = new GameObject("Deco_TBCArrow").transform;
-        arrow.SetParent(secret, false);
-        arrow.position = new Vector3(72.9f, 8.6f, 0);
-        var pillar = Load(Cat + "obj_cyan_pillar.png");
-        var arrowCol = new Color(0.93f, 0.75f, 0.35f);
-        ArrowPart(arrow, pillar, "Shaft", new Vector2(0.4f, 0), 90f, new Vector2(0.9f, 4.8f), arrowCol);
-        ArrowPart(arrow, pillar, "HeadUp", new Vector2(-1.4f, 0.6f), -45f, new Vector2(0.5f, 1.8f), arrowCol);
-        ArrowPart(arrow, pillar, "HeadDown", new Vector2(-1.4f, -0.6f), 45f, new Vector2(0.5f, 1.8f), arrowCol);
-        var txtGo = new GameObject("Deco_TBCText");
-        txtGo.transform.SetParent(secret, false);
-        txtGo.transform.position = new Vector3(73.7f, 8.6f, 0);
-        var tmp = txtGo.AddComponent<TextMeshPro>();
-        tmp.text = "<i>TO BE CONTINUED</i>";
-        tmp.fontSize = 4f;
-        tmp.fontStyle = FontStyles.Bold;
-        tmp.characterSpacing = 4f;
-        tmp.alignment = TextAlignmentOptions.Center;
-        tmp.color = new Color(0.11f, 0.11f, 0.13f);
-        tmp.rectTransform.sizeDelta = new Vector2(4.4f, 1f);
-        tmp.textWrappingMode = TextWrappingModes.NoWrap;
-        tmp.sortingOrder = -1;
-        // menacing little rock, striking a pose next to the arrow
-        var poser = Sprite(Cat + "obj_rock_cracked_3.png", "Deco_PosingRock", new Vector2(71.4f, 6.4f), 0.22f, RockCyan, -2);
-        poser.transform.SetParent(secret, true);
-        poser.transform.rotation = Quaternion.Euler(0, 0, 14f);
-    }
-
-    static void ArrowPart(Transform parent, Sprite sprite, string name, Vector2 local, float rot, Vector2 worldSize, Color c)
-    {
-        var go = new GameObject(name);
-        go.transform.SetParent(parent, false);
-        go.transform.localPosition = local;
-        go.transform.localRotation = Quaternion.Euler(0, 0, rot);
-        var sr = go.AddComponent<SpriteRenderer>();
-        sr.sprite = sprite;
-        sr.color = c;
-        sr.sortingOrder = -2;
-        var sz = sprite.bounds.size;
-        go.transform.localScale = new Vector3(worldSize.x / sz.x, worldSize.y / sz.y, 1);
     }
 
     // TippyRock prefab dressed as a cyan pillar; scale grows the whole domino, hinged at its base on `surface`.
