@@ -9,7 +9,8 @@ public class TippyRockController : MonoBehaviour
     
     [Header("Tip Settings")]
     [SerializeField] private float immediateTipSpeed = -15f; 
-    [SerializeField] private float fallGravityMultiplier = 3f;  
+    [SerializeField] private float fallGravityMultiplier = 3f;
+    [SerializeField] private LayerMask groundLayer;
 
     void Start() 
     {
@@ -61,7 +62,7 @@ public class TippyRockController : MonoBehaviour
     
     private void OnCollisionStay2D(Collision2D collision)
     {
-        if (ballHasHit && collision.gameObject.CompareTag("Ground"))
+        if (ballHasHit && (groundLayer & (1 << collision.gameObject.layer)) > 0)
         {
             rb.gravityScale = originalGravityScale;
         }
