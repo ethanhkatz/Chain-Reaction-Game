@@ -1,42 +1,28 @@
-// using UnityEngine;
-
-// public class TippyRockController : MonoBehaviour
-// {
-//     private Rigidbody2D rb;
-//     // Start is called once before the first execution of Update after the MonoBehaviour is created
-//     void Start()
-//     {
-//         rb = GetComponent<Rigidbody2D>();
-//     }
-
-//     // Update is called once per frame
-//     void Update()
-//     {
-
-//     }
-// }
 using UnityEngine;
 
-public class TippyRockController : MonoBehaviour
+public class TippyRockController : MonoBehaviour 
 {
     private Rigidbody2D rb;
     private bool isLocked = false;
-
-    // Changing this to public (or exposing a property) allows other rocks to read its state
     [HideInInspector] public bool ballHasHit = false;
+    private float originalGravityScale; // Remembers your default gravity setting
+    
+    [Header("Tip Settings")]
+    [SerializeField] private float immediateTipSpeed = -15f; // Increase this value to spin faster (e.g., -15f or -20f)
+    [SerializeField] private float fallGravityMultiplier = 3f;  // Multiplies gravity while tipping to snap down faster
 
-    void Start()
+    void Start() 
     {
         rb = GetComponent<Rigidbody2D>();
-        // Start out frozen horizontally so the player can't push it on startup
         rb.constraints = RigidbodyConstraints2D.FreezePositionX | RigidbodyConstraints2D.FreezeRotation;
+        
+        // Save the rock's starting gravity scale
+        originalGravityScale = rb.gravityScale;
     }
 
-    void Update()
+    void Update() 
     {
-        // Once the rock hits the floor and stops moving down, lock it vertically too
-        // This stops the player's downward weight from glitching or moving the rock
-        if (!isLocked && !ballHasHit && Mathf.Abs(rb.linearVelocity.y) < 0.01f)
+        if (!isLocked && !ballHasHit && Mathf.Abs(rb.linearVelocity.y) < 0.01f) 
         {
             rb.linearVelocity = Vector2.zero;
             rb.constraints = RigidbodyConstraints2D.FreezeAll;
@@ -44,26 +30,43 @@ public class TippyRockController : MonoBehaviour
         }
     }
 
-    private void OnCollisionEnter2D(Collision2D collision)
+    private void OnCollisionEnter2D(Collision2D collision) 
     {
-        // Condition 1: Hit by the Ball
-        if (collision.gameObject.CompareTag("Ball"))
+        if (collision.gameObject.CompareTag("Ball")) 
         {
-            UnfreezeRock();
+            float direction = collision.transform.position.x < transform.position.x ? 1f : -1f;
+            UnfreezeRock(direction);
             return;
         }
 
-        // Condition 2: Hit by another TippyRock
         TippyRockController otherRock = collision.gameObject.GetComponent<TippyRockController>();
-        if (otherRock != null && otherRock.ballHasHit)
+        if (otherRock != null && otherRock.ballHasHit) 
         {
-            UnfreezeRock();
+            float direction = Mathf.Sign(otherRock.rb.angularVelocity);
+            UnfreezeRock(direction);
         }
     }
 
-    private void UnfreezeRock()
+    private void UnfreezeRock(float directionSign) 
     {
+        if (ballHasHit) return; 
         ballHasHit = true;
-        rb.constraints = RigidbodyConstraints2D.None; // Free all physics
+        
+        rb.constraints = RigidbodyConstraints2D.None; 
+        
+        // 1. Instantly set a much higher rotation speed
+        rb.angularVelocity = Mathf.Abs(immediateTipSpeed) * directionSign;
+
+        // 2. Turn up gravity so it pulls the falling rock downward faster
+        rb.gravityScale = originalGravityScale * fallGravityMultiplier;
+    }
+    
+    // Optional: Reset gravity if the rock lands and you want it heavy/stable
+    private void OnCollisionStay2D(Collision2D collision)
+    {
+        if (ballHasHit && collision.gameObject.CompareTag("Ground"))
+        {
+            rb.gravityScale = originalGravityScale;
+        }
     }
 }
