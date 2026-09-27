@@ -5,7 +5,7 @@ using UnityEngine.InputSystem;
 // Added to the Player at runtime by ShellBootstrap. Owns:
 //  - "Where'd You Go": after 30 s without input the prisoner turns to face the camera (idle_front 1/2 loop).
 //  - "Hideo Game": a red "!" pops over the head on Alert() (falling stalactites, near misses with lava).
-//  - jump / land sounds.
+//  - jump / land / footstep sounds.
 public class PlayerShellFx : MonoBehaviour
 {
     public static PlayerShellFx Instance { get; private set; }
@@ -22,6 +22,7 @@ public class PlayerShellFx : MonoBehaviour
     float lastAlert = -10f;
     bool wasInDanger;
     int lavaMask;
+    int groundMask;
 
     void Awake()
     {
@@ -30,6 +31,7 @@ public class PlayerShellFx : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         lastInput = Time.unscaledTime;
         lavaMask = 1 << LayerMask.NameToLayer("Lava");
+        groundMask = LayerMask.GetMask("Ground", "Rock", "Default");
         BuildMark();
     }
 
@@ -52,6 +54,7 @@ public class PlayerShellFx : MonoBehaviour
     void OnDestroy()
     {
         if (mark != null) Destroy(mark.gameObject);
+        ShellAudio.SetFootsteps(false);
         if (Instance == this) Instance = null;
     }
 
@@ -85,7 +88,11 @@ public class PlayerShellFx : MonoBehaviour
 
         var k = Keyboard.current;
         if (k != null && k.spaceKey.wasPressedThisFrame && rb != null && Mathf.Abs(rb.linearVelocity.y) < 0.6f && Time.timeScale > 0f)
-            ShellAudio.Play(ShellAudio.Sfx.Jump, 0.35f);
+            ShellAudio.Play(ShellAudio.Sfx.Jump, 0.45f);
+
+        // Footstep loop while running on the ground.
+        bool grounded = rb != null && rb.IsTouchingLayers(groundMask) && Mathf.Abs(rb.linearVelocity.y) < 1f;
+        ShellAudio.SetFootsteps(grounded && rb != null && Mathf.Abs(rb.linearVelocity.x) > 0.5f && Time.timeScale > 0f && !GameManager.Frozen);
 
         // Near miss: stepping right up to a lava edge.
         bool danger = lavaMask != 0 && Physics2D.OverlapCircle(transform.position, dangerRadius, lavaMask) != null;

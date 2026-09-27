@@ -15,6 +15,18 @@ public static class ShellSettings
         set => PlayerPrefs.SetInt("shell.contrast", value ? 1 : 0);
     }
 
+    public static float MusicVolume
+    {
+        get => PlayerPrefs.GetFloat("shell.music", 1f);
+        set => PlayerPrefs.SetFloat("shell.music", Mathf.Clamp01(value));
+    }
+
+    public static float SfxVolume
+    {
+        get => PlayerPrefs.GetFloat("shell.sfx", 1f);
+        set => PlayerPrefs.SetFloat("shell.sfx", Mathf.Clamp01(value));
+    }
+
     // The time scale gameplay should run at right now (0 while GameManager has frozen the level).
     public static float PlayTimeScale => GameManager.Frozen ? 0f : GameSpeed;
 }

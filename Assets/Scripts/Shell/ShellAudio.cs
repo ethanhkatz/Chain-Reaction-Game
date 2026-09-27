@@ -1,20 +1,26 @@
 using UnityEngine;
 
-// Procedural sound: every clip is synthesized at startup (the project ships no audio files).
+// Game audio: team clips from Assets/Audio (via Resources/ShellArt) where they exist, synthesized clips for the gaps
+// (ball thud, rock crack, click, level-clear sting, alert). Also owns the persistent music player.
 public class ShellAudio : MonoBehaviour
 {
     public enum Sfx { Thud, Crack, Jump, Land, Click, Clear, GameOver, Alert }
+    public enum Music { None, Menu, Level, Ending }
 
     public static ShellAudio Instance { get; private set; }
 
     const int Rate = 44100;
-    const float MasterVolume = 0.8f;
+    const float SfxBase = 0.8f;
+    const float MusicBase = 0.35f;
     AudioClip[] clips;
     AudioSource[] pool;
     int next;
-    AudioSource drone;
+    AudioSource drone, music, steps, sting;
     float droneTarget;
+    float musicDuck = 1f;
+    Music currentMusic = Music.None;
     AudioListener fallbackListener;
+    ShellArt art;
 
     public static void Play(Sfx s, float volume = 1f, float pitchJitter = 0.06f)
     {
@@ -26,35 +32,95 @@ public class ShellAudio : MonoBehaviour
         if (Instance != null) Instance.droneTarget = on ? 0.05f : 0f;
     }
 
+    // Switches track only when the category changes, so music carries across level loads.
+    public static void SetMusic(Music m)
+    {
+        if (Instance == null) return;
+        Instance.musicDuck = 1f;
+        if (m == Instance.currentMusic) return;
+        Instance.currentMusic = m;
+        var a = Instance.art;
+        AudioClip clip = a == null ? null : m == Music.Menu ? a.musicMenu : m == Music.Level ? a.musicLevel : m == Music.Ending ? a.musicEnding : null;
+        Instance.music.Stop();
+        Instance.music.clip = clip;
+        if (clip != null) Instance.music.Play();
+        // The synthesized drone only fills in when there is no music track.
+        Instance.droneTarget = clip == null && m != Music.None ? 0.05f : 0f;
+    }
+
+    public static void SetFootsteps(bool on)
+    {
+        if (Instance == null || Instance.steps.clip == null) return;
+        if (on && !Instance.steps.isPlaying) Instance.steps.Play();
+        else if (!on && Instance.steps.isPlaying) Instance.steps.Pause();
+    }
+
+    // Death explosion, then the game-over jingle over its tail; music ducks underneath.
+    public static void PlayGameOver()
+    {
+        if (Instance == null) return;
+        var a = Instance.art;
+        SetFootsteps(false);
+        Instance.musicDuck = 0.25f;
+        if (a != null && a.deathExplosion != null)
+        {
+            Instance.pool[0].PlayOneShot(a.deathExplosion, 0.7f * SfxBase * ShellSettings.SfxVolume);
+            if (a.gameOverSting != null)
+            {
+                Instance.sting.clip = a.gameOverSting;
+                Instance.sting.volume = 0.8f * SfxBase * ShellSettings.SfxVolume;
+                Instance.sting.PlayDelayed(1.4f);
+            }
+        }
+        else Play(Sfx.GameOver, 0.7f, 0f);
+    }
+
+    public static void PlayLevelClear()
+    {
+        if (Instance == null) return;
+        SetFootsteps(false);
+        Instance.musicDuck = 0.4f;
+        Play(Sfx.Clear, 0.7f, 0f);
+    }
+
     void Awake()
     {
         Instance = this;
+        art = ShellArt.Get();
         pool = new AudioSource[10];
-        for (int i = 0; i < pool.Length; i++)
-        {
-            pool[i] = gameObject.AddComponent<AudioSource>();
-            pool[i].playOnAwake = false;
-            pool[i].spatialBlend = 0f;
-        }
+        for (int i = 0; i < pool.Length; i++) pool[i] = NewSource(false);
         clips = new AudioClip[8];
         clips[(int)Sfx.Thud] = Make("thud", 0.35f, Thud);
         clips[(int)Sfx.Crack] = Make("crack", 0.45f, Crack);
-        clips[(int)Sfx.Jump] = Make("jump", 0.14f, Jump);
+        clips[(int)Sfx.Jump] = art != null && art.jump != null ? art.jump : Make("jump", 0.14f, Jump);
         clips[(int)Sfx.Land] = Make("land", 0.12f, Land);
         clips[(int)Sfx.Click] = Make("click", 0.06f, Click);
         clips[(int)Sfx.Clear] = Make("clear", 1.3f, ClearSting);
         clips[(int)Sfx.GameOver] = Make("gameover", 1.6f, GameOverSting);
         clips[(int)Sfx.Alert] = Make("alert", 0.35f, Alert);
 
-        drone = gameObject.AddComponent<AudioSource>();
+        drone = NewSource(true);
         drone.clip = Make("drone", 8f, Drone);
-        drone.loop = true;
         drone.volume = 0f;
-        drone.spatialBlend = 0f;
         drone.Play();
+
+        music = NewSource(true);
+        music.volume = 0f;
+        steps = NewSource(true);
+        steps.clip = art != null ? art.footsteps : null;
+        sting = NewSource(false);
 
         fallbackListener = gameObject.AddComponent<AudioListener>();
         fallbackListener.enabled = false;
+    }
+
+    AudioSource NewSource(bool loop)
+    {
+        var a = gameObject.AddComponent<AudioSource>();
+        a.playOnAwake = false;
+        a.loop = loop;
+        a.spatialBlend = 0f;
+        return a;
     }
 
     // Keep exactly one listener: use ours only when the scene has none (menus without a camera listener).
@@ -68,7 +134,12 @@ public class ShellAudio : MonoBehaviour
 
     void Update()
     {
-        drone.volume = Mathf.MoveTowards(drone.volume, droneTarget * MasterVolume, Time.unscaledDeltaTime * 0.03f);
+        float dt = Time.unscaledDeltaTime;
+        drone.volume = Mathf.MoveTowards(drone.volume, droneTarget * SfxBase * ShellSettings.MusicVolume, dt * 0.03f);
+        music.volume = Mathf.MoveTowards(music.volume, MusicBase * musicDuck * ShellSettings.MusicVolume, dt * 0.5f);
+        steps.volume = 0.3f * SfxBase * ShellSettings.SfxVolume;
+        // Footsteps shouldn't keep looping behind a pause/freeze.
+        if (Time.timeScale == 0f && steps.isPlaying) steps.Pause();
     }
 
     void PlayInternal(Sfx s, float volume, float jitter)
@@ -76,7 +147,7 @@ public class ShellAudio : MonoBehaviour
         var src = pool[next];
         next = (next + 1) % pool.Length;
         src.pitch = 1f + Random.Range(-jitter, jitter);
-        src.PlayOneShot(clips[(int)s], Mathf.Clamp01(volume) * MasterVolume);
+        src.PlayOneShot(clips[(int)s], Mathf.Clamp01(volume) * SfxBase * ShellSettings.SfxVolume);
     }
 
     // ---------- synthesis ----------
