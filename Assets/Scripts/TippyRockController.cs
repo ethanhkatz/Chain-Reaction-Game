@@ -51,6 +51,7 @@ public class TippyRockController : MonoBehaviour
     {
         if (ballHasHit) return; 
         ballHasHit = true;
+        ChainEvents.Report(transform.position, "domino");
         
         rb.constraints = RigidbodyConstraints2D.None; 
         

@@ -68,6 +68,7 @@ public class StalactiteController : MonoBehaviour
     {
         if (isFalling) return;
         isFalling = true;
+        ChainEvents.Report(transform.position, "stalactite");
         rb.bodyType = RigidbodyType2D.Dynamic;
     }
 
@@ -128,6 +129,7 @@ public class StalactiteController : MonoBehaviour
         }
         else if (collision.gameObject.CompareTag(rockTag))
         {
+            ChainEvents.Report(collision.transform.position, "smash");
             Destroy(collision.gameObject);
             Destroy(gameObject);
         }

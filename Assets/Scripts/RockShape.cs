@@ -54,6 +54,7 @@ public class RockShape : MonoBehaviour
         if (currentStage >= 3) return;
 
         currentStage++;
+        ChainEvents.Report(transform.position, "rock");
 
         switch (currentStage)
         {
