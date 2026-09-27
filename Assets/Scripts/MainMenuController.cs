@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 
 public class MainMenuController : MonoBehaviour
@@ -18,6 +19,9 @@ public class MainMenuController : MonoBehaviour
         Time.timeScale = 1f;
         if (logo != null) { logoPos = logo.anchoredPosition; logoScale = logo.localScale; }
         if (fadeGroup != null) fadeGroup.alpha = 0f;
+        // Start with New Game highlighted so keyboard/gamepad players see where focus is.
+        var es = EventSystem.current;
+        if (es != null && es.firstSelectedGameObject != null) es.SetSelectedGameObject(es.firstSelectedGameObject);
     }
 
     void Update()
