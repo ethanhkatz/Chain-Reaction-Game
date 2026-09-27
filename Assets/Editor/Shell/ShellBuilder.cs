@@ -78,6 +78,8 @@ public static class ShellBuilder
         art.chainLink2 = S("obj_chain_link_2");
         art.crash = S("fx_crash");
         art.credits = Gen("credits_screen");
+        // Generated art shared with other features: make sure each imports as a 2D sprite (some metas said Cube).
+        foreach (var n in new[] { "collectible_key", "minigame_bg_yard", "minigame_guard_target", "ui_release_form", "ui_stamp_released" }) Gen(n);
         art.ballSkins = new[] { S("ball_big_happy_cyan"), S("ball_big_pink"), Gen("skin_ball_gold"), Gen("skin_ball_disco"), Gen("skin_ball_magma") };
         art.footsteps = Clip("sfx_footsteps_run.wav", false);
         art.jump = Clip("sfx_jump.wav", false);
@@ -337,6 +339,8 @@ public static class ShellBuilder
             rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.anchoredPosition = p;
         }
+
+        if (Object.FindAnyObjectByType<MainMenuExtras>() == null) new GameObject("MenuExtras").AddComponent<MainMenuExtras>();
 
         var es = Object.FindAnyObjectByType<EventSystem>();
         var play = GameObject.Find("PlayButton");
