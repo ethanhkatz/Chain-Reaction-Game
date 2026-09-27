@@ -20,6 +20,9 @@ public class RockShape : MonoBehaviour
     [Tooltip("Whether the stairs are facing left or right")]
     [SerializeField] private bool stairsIsRight;
 
+    [Tooltip("Keep the stairs the same size and facing as the rock instead of applying the stairs scale below")]
+    [SerializeField] private bool matchSizeOnStairs;
+
     private int currentStage = 0; // Tracks hits: 0 = Intact, 1 = Stage 1, 2 = Stage 2, 3 = Stage 3, 4 = Stairs
     private SpriteRenderer spriteRenderer;
 
@@ -85,7 +88,8 @@ public class RockShape : MonoBehaviour
     {
         if (stairsSprite != null)
         {
-            ChangeSpriteAndMatchScale(stairsSprite);
+            if (matchSizeOnStairs) ChangeSpriteAndMatchScale(stairsSprite);
+            else spriteRenderer.sprite = stairsSprite;
         }
 
         // Remove existing 2D primitive colliders so they don't block the player like a solid block
@@ -97,6 +101,8 @@ public class RockShape : MonoBehaviour
         
         // Ensure the stairs are on your player's ground layer so they can jump off of it
         gameObject.layer = LayerMask.NameToLayer("Ground");
+
+        if (matchSizeOnStairs) return;
 
         // Scale the stairs and reflect if necessary
         float newScale = transform.localScale.x / 2f;
