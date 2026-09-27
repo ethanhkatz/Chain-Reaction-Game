@@ -64,14 +64,14 @@ public static class Level5Builder
         // ---------- backdrop ----------
         var bg = S("env_background_prison_blur");
         for (int i = 0; i < 5; i++)
-            Deco("Backdrop", bg, new Vector2(-6 + i * 27.3f, 8f), 1f, new Color(0.3f, 0.3f, 0.34f), -100);
+            Deco("Backdrop", bg, new Vector2(-6 + i * 27.3f, 8f), 1f, new Color(0.24f, 0.24f, 0.27f), -100);
 
         // ---------- A: cell block (floor top y=0) ----------
         Solid("Wall_Left", -11, -4, -8, 22);
         Solid("Floor_A", -11, -4, 6, 0);
-        Solid("Trench_Bed", 6, -4, 9.5f, -0.8f);
-        Lava("Lava_Trench", 6, -0.8f, 9.5f, -0.2f);
-        Solid("Floor_B", 9.5f, -4, 29, 0);
+        Solid("Trench_Bed", 6, -4, 9f, -0.35f);
+        Lava("Lava_Trench", 6, -0.35f, 9f, -0.05f);
+        Solid("Floor_B", 9f, -4, 29, 0);
         Solid("Ceiling_AB", -11, 8, 27, 10, DarkGray);
         Deco("Note", S("story_note_training"), new Vector2(-4.5f, 4.2f), 0.3f, new Color(0.8f, 0.8f, 0.8f), -5);
         Chain(new Vector2(3, 8), 3);
@@ -167,12 +167,19 @@ public static class Level5Builder
         // ---------- spawn ----------
         var player = GameObject.Find("Player");
         var ball = GameObject.Find("Ball");
-        player.transform.position = new Vector3(-3f, 1.7f, 0);
-        ball.transform.position = new Vector3(-5.5f, 1.4f, 0);
+        // spawn by the left wall, ball to the right: holding Left for a moment parks you against the wall
+        // (L5_SPAWN_X/L5_SPAWN_Y env vars move the spawn for testing a later section)
+        float sx = -6f, sy = 1.7f;
+        var ex = Environment.GetEnvironmentVariable("L5_SPAWN_X");
+        var ey = Environment.GetEnvironmentVariable("L5_SPAWN_Y");
+        if (!string.IsNullOrEmpty(ex)) sx = float.Parse(ex, System.Globalization.CultureInfo.InvariantCulture);
+        if (!string.IsNullOrEmpty(ey)) sy = float.Parse(ey, System.Globalization.CultureInfo.InvariantCulture);
+        player.transform.position = new Vector3(sx, sy, 0);
+        ball.transform.position = new Vector3(sx + 2.5f, sy - 0.3f, 0);
         var cmFollow = GameObject.Find("CinemachineCamera");
-        cmFollow.transform.position = new Vector3(-3f, 1.7f, cmFollow.transform.position.z);
+        cmFollow.transform.position = new Vector3(sx, sy, cmFollow.transform.position.z);
         var mc = GameObject.Find("Main Camera");
-        mc.transform.position = new Vector3(-3f, 1.7f, mc.transform.position.z);
+        mc.transform.position = new Vector3(sx, sy, mc.transform.position.z);
     }
 
     // ---------------- helpers ----------------
