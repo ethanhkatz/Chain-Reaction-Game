@@ -34,8 +34,13 @@ public static class Level4Builder
     static void BuildScene()
     {
         if (!AssetDatabase.IsValidFolder("Assets/Scenes/Levels")) AssetDatabase.CreateFolder("Assets/Scenes", "Levels");
-        AssetDatabase.DeleteAsset(ScenePath);
-        if (!AssetDatabase.CopyAsset("Assets/Scenes/SampleScene.unity", ScenePath)) throw new Exception("copy failed");
+        if (System.IO.File.Exists(ScenePath))
+        {
+            // overwrite contents only, so the scene keeps its GUID (build settings reference it)
+            System.IO.File.Copy("Assets/Scenes/SampleScene.unity", ScenePath, true);
+            AssetDatabase.ImportAsset(ScenePath, ImportAssetOptions.ForceUpdate);
+        }
+        else if (!AssetDatabase.CopyAsset("Assets/Scenes/SampleScene.unity", ScenePath)) throw new Exception("copy failed");
         var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
 
         string[] keep = { "Main Camera", "CinemachineCamera", "Global Light 2D", "GameManager", "Canvas", "EventSystem", "Player", "Ball" };
