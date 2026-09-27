@@ -9,7 +9,9 @@ using UnityEngine.SceneManagement;
 // Builds Assets/Scenes/Levels/Level3.unity ("Falling platforms"). Re-run freely; this script is the source of truth.
 //   Tools/jam.sh run Level3Builder.Build
 // Beats: (1) smash a pillar so a drawbridge slab falls across the lava, (2) smash a pillar so a platform drops onto
-// a high button that opens the laser gate, (3) smash the latch so a trapdoor drops you down the shaft, (4) exit.
+// a high button that opens the laser gate, (3) smash the latch so a trapdoor drops you down the shaft, (4) a lava
+// channel bridged by crumbling platforms that give way a second after you (or the ball) touch them, (5) exit.
+// Secret: a hidden room at the foot of the shaft (walk left after landing).
 public static class Level3Builder
 {
     const string ScenePath = "Assets/Scenes/Levels/Level3.unity";
@@ -88,6 +90,9 @@ public static class Level3Builder
         var bg = Sprite("Background", S("env_background_prison_blur"), new Vector2(28f, -2f), 4.2f, -100);
         bg.color = new Color(0.32f, 0.34f, 0.38f);
         bg.transform.position += Vector3.forward * 20f;
+        var bg2 = Sprite("Background2", S("env_background_prison_blur"), new Vector2(98f, -6f), 4.2f, -100);
+        bg2.color = new Color(0.26f, 0.27f, 0.31f);
+        bg2.transform.position += Vector3.forward * 20f;
 
         // ---- Static prison shell ----
         // Terrain standard: walkable tops = riveted floor art; all other mass = same art tinted dark, far back.
@@ -96,15 +101,21 @@ public static class Level3Builder
         Block("StartFloor", -30, 9.5f, -40, 0, true);
         Block("PitFloor", 9.5f, 20.5f, -40, -3, false);   // catches debris under the lava
         Block("RoomFloor", 20.5f, 40, -4, 0, true);
-        Block("ShaftLeftWall", 20.5f, 40, -40, -4, false);
+        // Left of the shaft foot: solid wall with a hidden room carved into it (see BuildSecret).
+        Block("ShaftLeftWall", 29f, 40, -11, -4, false);
+        Block("SecretBackWall", 20.5f, 29f, -16, -4, false);
+        Block("SecretFloor", 20.5f, 40, -40, -16, true);
         Block("ShaftRightWall", 46, 60, -8.5f, 14, false);
         Block("ShaftLedge1", 40, 41.8f, -7.6f, -7, true);
         Block("ShaftLedge2", 40, 42.5f, -12.6f, -12, true);
         Bracket(40.4f, -7.6f, 1.2f);
         Bracket(40.4f, -12.6f, 1.6f);
-        Block("CorridorFloor", 40, 80, -40, -16, true);
-        Block("CorridorCeiling", 46, 80, -8.5f, 14, false);
-        Block("EndWall", 72, 80, -16, -8.5f, false);
+        Block("CorridorFloor", 40, 56, -40, -16, true);
+        Block("CorridorCeiling", 46, 126, -8.5f, 14, false);
+        Block("ChannelFloor", 56, 92, -40, -19, false);   // catches the collapsed bridge under the lava
+        Block("Landing", 92, 126, -40, -16, true);
+        Block("EndWall", 119, 126, -16, -8.5f, false);
+        Lava("LavaChannel", 56, 92, -19f, -17.2f);
         Block("GateHeader", 33.5f, 35.5f, 7.3f, 14, false);
         Block("ButtonLedge", 30.5f, 33.5f, 7.3f, 8f, true);
         Bracket(33.1f, 7.3f, 1.4f);
@@ -160,11 +171,35 @@ public static class Level3Builder
         SetPlatform(trap, FallingPlatform.Mode.Hinge, new Vector2(46f, -T / 2f), 90f, crash);
         Pillar("Support_Trapdoor", 38.2f, 0f, 3.2f, trap);
 
-        // ---- Beat 4: exit at the bottom corridor ----
+        // ---- Beat 4: the collapsing bridge. Every slab starts to shudder when the player or the ball lands on it
+        // and drops into the lava a second later, so the run only works if you keep moving. ----
+        const int Slabs = 9;
+        for (int i = 0; i < Slabs; i++)
+        {
+            float cx = 56f + 0.15f + 1.85f + 4f * i;
+            var slab = Platform("CrumbleSlab_" + i, new Vector2(cx, -16f - T / 2f), 0f, 3.7f, T);
+            SetPlatform(slab, FallingPlatform.Mode.Drop, Vector2.zero, 0f, crash);
+            var crumble = slab.gameObject.AddComponent<CrumbleOnWeight>();
+            SetField(crumble, "delay", 1.05f);
+            // Little hanger chains up to the ceiling, purely visual, so the slabs read as suspended.
+            foreach (float dx in new[] { -1.4f, 1.4f })
+            {
+                var hang = Tiled("Hanger", terrain, root, new Vector2(cx + dx, -12.25f), new Vector2(0.12f, 7.5f), 0.25f, -3);
+                hang.color = new Color(0.38f, 0.4f, 0.44f);
+                hang.transform.SetParent(slab.transform, true);
+            }
+        }
+
+        // ---- Collectibles: one on the path, one hovering over a crumbling slab (hop for it), one in the secret room ----
+        Collectible("Collectible_StartRun", new Vector2(-1f, 2.3f));
+        Collectible("Collectible_CrumbleSlab", new Vector2(56f + 2f + 4f * 5, -12.7f));
+        BuildSecret();
+
+        // ---- Beat 5: exit at the far end of the landing ----
         var exit = new GameObject("ExitDoor");
         exit.tag = "Finish";
         exit.transform.SetParent(root);
-        exit.transform.position = new Vector3(65f, -16f + 2.58f, 0f);
+        exit.transform.position = new Vector3(113f, -16f + 2.58f, 0f);
         exit.transform.localScale = Vector3.one * 0.5f;
         var esr = exit.AddComponent<SpriteRenderer>();
         esr.sprite = S("obj_exit_door_glow");
@@ -172,6 +207,88 @@ public static class Level3Builder
         var ec = exit.AddComponent<BoxCollider2D>();
         ec.isTrigger = true;
         ec.size = new Vector2(3f, 9f);
+    }
+
+    // Hidden room at the foot of the shaft: a fake wall fades away as you walk in. Hook 'em.
+    static void BuildSecret()
+    {
+        var secret = new GameObject("Secret_Bevo").transform;
+        secret.SetParent(root);
+        const float x0 = 29f, x1 = 40f, y0 = -16f, y1 = -11f;
+        var c = new Vector2((x0 + x1) / 2f, (y0 + y1) / 2f);
+
+        var back = Tiled("RoomBack", terrain, secret, c, new Vector2(x1 - x0, y1 - y0), 0.5f, -12);
+        back.color = new Color(0.14f, 0.14f, 0.16f);
+
+        // Longhorn silhouette made of the cyan block art.
+        string[] art =
+        {
+            "X...........X",
+            "XX.........XX",
+            ".XXX.....XXX.",
+            "...XXXXXXX...",
+            "....XXXXX....",
+            ".....XXX.....",
+            ".....XXX.....",
+            "......X......",
+        };
+        var blockSprite = S("obj_cyan_block_small");
+        const float px = 0.4f;
+        var horn = new Vector2(32.2f, -11.9f);
+        for (int r = 0; r < art.Length; r++)
+            for (int col = 0; col < art[r].Length; col++)
+            {
+                if (art[r][col] != 'X') continue;
+                var b = new GameObject("Longhorn");
+                b.transform.SetParent(secret);
+                b.transform.position = new Vector3(horn.x + (col - 6) * px, horn.y - r * px, 0f);
+                b.transform.localScale = new Vector3(px / 2.58f * 1.05f, px / 1.87f * 1.05f, 1f);
+                var bsr = b.AddComponent<SpriteRenderer>();
+                bsr.sprite = blockSprite;
+                bsr.sortingOrder = -5;
+            }
+
+        var orange = new Color(0.749f, 0.341f, 0f); // #BF5700
+        Graffiti(secret, "HOOK 'EM", new Vector2(37.2f, -12.4f), 0.11f, orange, -6f);
+        Graffiti(secret, "BEVO WAS HERE", new Vector2(37.2f, -13.3f), 0.05f, orange * 0.85f + new Color(0, 0, 0, 0.15f), 4f);
+
+        Collectible("Collectible_Secret", new Vector2(30.3f, -15.2f)).transform.SetParent(secret, true);
+
+        // Fake wall in front, same look as the surrounding mass; fades out while the player is inside.
+        var cover = Tiled("FakeWall", terrain, secret, c + new Vector2(0.1f, 0f), new Vector2(x1 - x0 + 0.2f, y1 - y0), 0.5f, 5);
+        cover.color = MassTint;
+        var trig = cover.gameObject.AddComponent<BoxCollider2D>();
+        trig.isTrigger = true;
+        trig.size = cover.size - new Vector2(1.2f / 0.5f, 0f);
+        trig.offset = new Vector2(-0.6f / 0.5f, 0f);
+        cover.gameObject.AddComponent<SecretFadeCover>();
+    }
+
+    static void Graffiti(Transform parent, string text, Vector2 pos, float size, Color color, float tilt)
+    {
+        var go = new GameObject("Graffiti_" + text);
+        go.transform.SetParent(parent);
+        go.transform.position = pos;
+        go.transform.rotation = Quaternion.Euler(0, 0, tilt);
+        var tm = go.AddComponent<TextMesh>();
+        tm.text = text;
+        tm.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        tm.fontSize = 64;
+        tm.characterSize = size;
+        tm.anchor = TextAnchor.MiddleCenter;
+        tm.alignment = TextAlignment.Center;
+        tm.fontStyle = FontStyle.Bold;
+        tm.color = color;
+        var mr = go.GetComponent<MeshRenderer>();
+        mr.sharedMaterial = tm.font.material;
+        mr.sortingOrder = -6;
+    }
+
+    static GameObject Collectible(string name, Vector2 pos)
+    {
+        var sr = Sprite(name, S("obj_cyan_block_small"), pos, 0.35f, 3);
+        sr.gameObject.AddComponent<BoxCollider2D>().isTrigger = true;
+        return sr.gameObject;
     }
 
     // ---------- helpers ----------
