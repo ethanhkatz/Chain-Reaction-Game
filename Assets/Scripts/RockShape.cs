@@ -26,11 +26,7 @@ public class RockShape : MonoBehaviour
         if (spriteRenderer.sprite != null)
         {
             Vector3 spriteSize = spriteRenderer.sprite.bounds.size;
-            Vector3 targetWorldSize = new Vector3(
-                spriteSize.x * transform.localScale.x,
-                spriteSize.y * transform.localScale.y,
-                spriteSize.z * transform.localScale.z
-        );
+            targetWorldSize = new Vector2(spriteSize.x * transform.localScale.x, spriteSize.y * transform.localScale.y);
         }
     }
 
@@ -53,10 +49,10 @@ public class RockShape : MonoBehaviour
         switch (currentStage)
         {
             case 1:
-                if (stage1Sprite != null) spriteRenderer.sprite = stage1Sprite;
+                if (stage1Sprite != null) ChangeSpriteAndMatchScale(stage1Sprite);
                 break;
             case 2:
-                if (stage2Sprite != null) spriteRenderer.sprite = stage2Sprite;
+                if (stage2Sprite != null) ChangeSpriteAndMatchScale(stage2Sprite);
                 break;
             case 3:
                 ConvertToStairs();
@@ -82,7 +78,7 @@ public class RockShape : MonoBehaviour
     {
         if (stairsSprite != null)
         {
-            spriteRenderer.sprite = stairsSprite;
+            ChangeSpriteAndMatchScale(stairsSprite);
         }
 
         // Remove existing 2D primitive colliders so they don't block the player like a solid block
