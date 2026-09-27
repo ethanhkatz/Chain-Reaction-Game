@@ -10,12 +10,14 @@ public class JamChain : MonoBehaviour
     readonly List<(SpriteRenderer sr, float baseAngle, float diag)> segs = new List<(SpriteRenderer, float, float)>();
 
     [SerializeField] Sprite spriteA, spriteB;
+    [SerializeField] Material glowMaterial;
     Material material;
     float maxLen = MaxLength;
     const float SegLen = 1.7f;   // world length of one chain-art segment
 
-    public void Init(Transform player, Transform ball, Sprite linkA, Sprite linkB, Material mat)
+    public void Init(Transform player, Transform ball, Sprite linkA, Sprite linkB, Material mat, Material glowMat)
     {
+        glowMaterial = glowMat;
         a = player; b = ball; spriteA = linkA; spriteB = linkB ?? linkA; material = mat;
         var j = ball.GetComponent<DistanceJoint2D>() ?? player.GetComponent<DistanceJoint2D>();
         maxLen = j != null && j.distance > 0.1f ? j.distance : MaxLength;
@@ -52,7 +54,15 @@ public class JamChain : MonoBehaviour
             var sr = go.AddComponent<SpriteRenderer>();
             sr.sprite = s;
             if (material != null) sr.sharedMaterial = material;
-            sr.sortingOrder = 1;
+            sr.sortingOrder = 4;   // above player (2) and ball (1): the chain must always read
+            // Cyan rim: an enlarged, unlit, translucent copy of the link drawn just behind it.
+            var glow = new GameObject("Glow").AddComponent<SpriteRenderer>();
+            glow.transform.SetParent(go.transform, false);
+            glow.transform.localScale = Vector3.one * 1.18f;
+            glow.sprite = s;
+            if (glowMaterial != null) glow.sharedMaterial = glowMaterial;
+            glow.color = new Color(0.36f, 0.95f, 0.84f, 0.45f);
+            glow.sortingOrder = 3;
             segs.Add(Describe(sr));
         }
         for (int i = 0; i < segs.Count; i++) segs[i].sr.enabled = i < n;
@@ -75,7 +85,7 @@ public class JamChain : MonoBehaviour
             Vector2 s0 = Bez(p0, ctrl, p1, i / (float)n), s1 = Bez(p0, ctrl, p1, (i + 1) / (float)n);
             Vector2 dir = s1 - s0;
             // Uniform link size so the chain never looks stretched; overlap hides gaps on the curve.
-            float scale = (arc / n) * 1.15f / segs[i].diag;
+            float scale = (arc / n) * 1.15f * 1.3f / segs[i].diag;
             var t = segs[i].sr.transform;
             t.position = new Vector3((s0.x + s1.x) * 0.5f, (s0.y + s1.y) * 0.5f, 0.5f);
             t.rotation = Quaternion.Euler(0, 0, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg - segs[i].baseAngle);
