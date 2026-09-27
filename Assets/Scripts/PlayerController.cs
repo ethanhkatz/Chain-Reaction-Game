@@ -196,6 +196,7 @@ public class PlayerController : MonoBehaviour
 
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
+    private BoxCollider2D bodyCollider;
     
     private static PlayerController instance;
     private ContactFilter2D contactFilter;
@@ -209,11 +210,13 @@ public class PlayerController : MonoBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
+        bodyCollider = GetComponent<BoxCollider2D>();
     }
 
     void Update()
     {
-        isGrounded = Physics2D.OverlapBox(groundCheckPoint.position, groundCheckSize, 0f, groundLayer) != null;
+        isGrounded = Physics2D.OverlapBox(groundCheckPoint.position, groundCheckSize, 0f, groundLayer) != null
+            || IsStandingOnSomething();
 
         if (isGrounded && Keyboard.current.spaceKey.wasPressedThisFrame)
         {
@@ -246,6 +249,24 @@ public class PlayerController : MonoBehaviour
         if (Keyboard.current.leftArrowKey.isPressed) { horizontalVelocity -= walkSpeed; }
 
         rb.linearVelocity = new Vector2(horizontalVelocity, rb.linearVelocity.y);
+    }
+
+    private readonly ContactPoint2D[] contacts = new ContactPoint2D[16];
+
+    // The feet box only covers the middle of the player, so standing on a stair edge or the ball left the player
+    // unable to jump. Also count any solid contact along the bottom of the body collider.
+    private bool IsStandingOnSomething()
+    {
+        if (bodyCollider == null) return false;
+        float feet = bodyCollider.bounds.min.y + 0.15f;
+        int n = rb.GetContacts(contacts);
+        for (int i = 0; i < n; i++)
+        {
+            var other = contacts[i].collider == bodyCollider ? contacts[i].otherCollider : contacts[i].collider;
+            if (other == null || other.isTrigger) continue;
+            if (contacts[i].point.y <= feet && rb.linearVelocity.y <= 0.1f) return true;
+        }
+        return false;
     }
 
     private void OnTriggerEnter2D(Collider2D other)
