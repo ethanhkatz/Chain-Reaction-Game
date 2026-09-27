@@ -22,6 +22,8 @@ public static class Level3Builder
     static int groundLayer, lavaLayer;
     static Sprite gray;
     static Transform root;
+    static PhysicsMaterial2D slick;
+    const string SlickPath = "Assets/Art/Level3/l3_slick.physicsMaterial2D";
 
     public static void Build()
     {
@@ -29,6 +31,13 @@ public static class Level3Builder
         {
             Directory.CreateDirectory("Assets/Scenes/Levels");
             gray = EnsureGraySprite();
+            slick = AssetDatabase.LoadAssetAtPath<PhysicsMaterial2D>(SlickPath);
+            if (slick == null)
+            {
+                // Frictionless walls so the player can't stick to a wall by holding into it mid-fall.
+                slick = new PhysicsMaterial2D("l3_slick") { friction = 0f, bounciness = 0f };
+                AssetDatabase.CreateAsset(slick, SlickPath);
+            }
             AssetDatabase.DeleteAsset(ScenePath);
             if (!AssetDatabase.CopyAsset("Assets/Scenes/SampleScene.unity", ScenePath)) throw new Exception("copy failed");
             var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
@@ -82,7 +91,7 @@ public static class Level3Builder
         Block("RoomFloor", 20.5f, 40, -4, 0);
         Block("ShaftLeftWall", 36, 40, -20, -4);
         Block("ShaftRightWall", 46, 49, -10, 14);
-        Block("ShaftLedge1", 43.5f, 46, -8.6f, -8);
+        Block("ShaftLedge1", 40, 41.8f, -7.6f, -7);
         Block("ShaftLedge2", 40, 42.5f, -12.6f, -12);
         Block("CorridorFloor", 36, 74, -24, -16);
         Block("CorridorCeiling", 46, 74, -10, -8);
@@ -202,7 +211,9 @@ public static class Level3Builder
         sr.drawMode = SpriteDrawMode.Sliced;
         sr.size = size;
         sr.sortingOrder = 0;
-        go.AddComponent<BoxCollider2D>().size = size;
+        var bc = go.AddComponent<BoxCollider2D>();
+        bc.size = size;
+        bc.sharedMaterial = slick;
     }
 
     static void Lava(string name, float x0, float x1, float y0, float y1)
@@ -221,7 +232,9 @@ public static class Level3Builder
         var go = sr.gameObject;
         go.layer = groundLayer;
         go.transform.rotation = Quaternion.Euler(0, 0, rotation);
-        go.AddComponent<BoxCollider2D>().size = sr.size;
+        var pc = go.AddComponent<BoxCollider2D>();
+        pc.size = sr.size;
+        pc.sharedMaterial = slick;
         var rb = go.AddComponent<Rigidbody2D>();
         rb.bodyType = RigidbodyType2D.Kinematic;
         return go.AddComponent<FallingPlatform>();
