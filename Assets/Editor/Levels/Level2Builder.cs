@@ -68,6 +68,9 @@ public static class Level2Builder
             Block("PitBed", 19f, 24f, -24, -8f, false);
             Block("TrenchBed", 36, 54, -24, -0.6f, true);      // lava trench x 36..54
             Block("Floor_End", 54, 72, -24, 0, true);
+            // Low curb before the dominoes: the player hops it, but rock pieces shoved along the floor stop here
+            // instead of reaching the domino line and jamming the cascade.
+            Block("Curb", 32.8f, 33.6f, -24, 1f, true);
             Block("Ceiling", -40, 100, Ceil, Ceil + 20, false);
             Block("Wall_Left", -40, -10, -24, Ceil, false);
             Block("Wall_Right", 72, 100, -24, Ceil, false);    // closes the frame right after the exit
