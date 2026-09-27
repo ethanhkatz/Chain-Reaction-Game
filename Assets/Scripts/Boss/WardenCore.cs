@@ -8,6 +8,7 @@ public class WardenCore : MonoBehaviour
     public WardenBoss boss;
     public float padding = 0.35f;
     public Sprite crackFx;
+    public Sprite brokenSprite;
 
     public bool Broken { get; private set; }
 
@@ -81,8 +82,11 @@ public class WardenCore : MonoBehaviour
             foreach (var r in renderers) r.color = new Color(1, 1, 1, 1 - k);
             yield return null;
         }
-        // a dark socket stays behind
+        // the smashed plate stays behind (dark socket if there is no broken art)
         transform.localScale = s0;
-        foreach (var r in renderers) r.color = new Color(0.12f, 0.12f, 0.14f, 1f);
+        var sr = GetComponent<SpriteRenderer>();
+        bool hasArt = brokenSprite != null && sr != null && brokenSprite != sr.sprite;
+        if (hasArt) sr.sprite = brokenSprite;
+        foreach (var r in renderers) r.color = hasArt ? Color.white : new Color(0.12f, 0.12f, 0.14f, 1f);
     }
 }

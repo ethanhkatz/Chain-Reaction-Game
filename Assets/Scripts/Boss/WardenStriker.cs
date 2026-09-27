@@ -8,6 +8,7 @@ public class WardenStriker : MonoBehaviour
     public bool consumeOnHit;
     public bool respawnIfWasted;
     public float wastedAfter = 4f;
+    public bool ignorePlayer;
 
     Vector3 homePos;
     float homeRot;
@@ -32,6 +33,14 @@ public class WardenStriker : MonoBehaviour
     {
         homePos = transform.position;
         homeRot = transform.eulerAngles.z;
+        if (ignorePlayer)
+        {
+            var player = FindAnyObjectByType<PlayerController>();
+            if (player != null)
+                foreach (var pc in player.GetComponentsInChildren<Collider2D>())
+                    foreach (var mine in GetComponentsInChildren<Collider2D>())
+                        Physics2D.IgnoreCollision(pc, mine);
+        }
         if (respawnIfWasted && !isSpare)
         {
             spare = Instantiate(gameObject, transform.parent);

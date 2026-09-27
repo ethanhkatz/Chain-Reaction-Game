@@ -17,6 +17,8 @@ public class WardenBoss : MonoBehaviour
     public Transform body;          // everything that sinks when it dies
     public Transform tower;         // the part that rears up for a slam
     public SpriteRenderer eye;
+    public SpriteRenderer bodyArt;
+    public Sprite defeatedSprite;   // the collapsed wreck left behind
     public Gate exitGate;
 
     [Header("Arena")]
@@ -118,7 +120,7 @@ public class WardenBoss : MonoBehaviour
         {
             if (dead) yield break;
             float k = t / tel;
-            if (tower != null) tower.localPosition = home + Vector3.up * 0.6f * Mathf.SmoothStep(0, 1, k);
+            if (tower != null) tower.localPosition = home + Vector3.up * 1.2f * Mathf.SmoothStep(0, 1, k);
             bool on = Mathf.Repeat(t * (6f + 6f * k), 1f) < 0.5f;
             foreach (var m in marks) if (m != null) m.color = on ? Orange : new Color(1f, 0.55f, 0.18f, 0.25f);
             foreach (var s in shards) if (s != null) s.transform.position = new Vector3(s.transform.position.x, ceilY - 0.75f, 0) + (Vector3)(Random.insideUnitCircle * 0.05f * k);
@@ -246,7 +248,8 @@ public class WardenBoss : MonoBehaviour
         ShellAudio.Play(ShellAudio.Sfx.Thud);
         Pop(crashSprite, center, 0.4f, 1.1f, Color.white, 0.9f);
         yield return Shudder(0.9f, 0.3f);
-        // collapse into the floor, popping as it goes
+        // collapse into the floor (drawn behind it), popping as it goes
+        foreach (var r in body.GetComponentsInChildren<SpriteRenderer>()) r.sortingOrder = -11;
         Vector3 home = body.localPosition;
         float dur = 2.2f;
         for (float t = 0; t < dur; t += Time.deltaTime)
@@ -259,7 +262,20 @@ public class WardenBoss : MonoBehaviour
                 Pop(crashSprite, center + new Vector3(Random.Range(-5f, 5f), Random.Range(-4f, 2f), 0), 0.12f, 0.35f, Orange);
             yield return null;
         }
-        body.gameObject.SetActive(false);
+        if (defeatedSprite != null && bodyArt != null)
+        {
+            // leave the wreck slumped on the floor, behind the player
+            float h = bodyArt.bounds.size.y;
+            body.localPosition = home;
+            body.localRotation = Quaternion.identity;
+            foreach (Transform c in body) if (c != bodyArt.transform) c.gameObject.SetActive(false);
+            bodyArt.sprite = defeatedSprite;
+            bodyArt.transform.localScale = Vector3.one * (h * 0.45f / defeatedSprite.bounds.size.y);
+            bodyArt.transform.position = new Vector3(bodyArt.transform.position.x, floorY + defeatedSprite.bounds.size.y * bodyArt.transform.localScale.y / 2f, 0);
+            bodyArt.sortingOrder = -8;
+            Pop(crashSprite, bodyArt.transform.position, 0.3f, 0.9f, Color.white);
+        }
+        else body.gameObject.SetActive(false);
         JamAtmosphere.Shake(0.7f);
         ShellAudio.Play(ShellAudio.Sfx.Thud);
         yield return new WaitForSeconds(0.4f);
