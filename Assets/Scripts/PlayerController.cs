@@ -9,33 +9,68 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float jumpVelocity;
     [SerializeField] private float walkSpeed;
 
-    private bool isGrounded;
-    private ContactFilter2D contactFilter;
+    [SerializeField] private Sprite idleRightSprite;
+    [SerializeField] private Sprite idleLeftSprite;
+    [SerializeField] private Sprite jumpRightSprite;
+    [SerializeField] private Sprite jumpLeftSprite;
 
-    Rigidbody2D rb;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    [SerializeField] private Sprite[] runRightFrames;
+    [SerializeField] private Sprite[] runLeftFrames;
+    [SerializeField] private float frameRate = 0.1f;
+    
+    private bool isGrounded;
+    private bool jumpRequested; // Tracks if a valid jump input happened
+    private bool facingRight = true;
+
+    private float animationTimer;
+    private int currentFrameIndex;
+
+    private Rigidbody2D rb;
+    private SpriteRenderer spriteRenderer;
+
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
-        contactFilter = new ContactFilter2D();
-        contactFilter.layerMask = groundLayer;
-        contactFilter.useLayerMask = true;
+        spriteRenderer = GetComponent<SpriteRenderer>();
     }
 
-    // Update is called once per frame
     void Update()
     {
+        // 1. Check if the player is touching the floor
         Collider2D collider = Physics2D.OverlapCircle(groundCheckPoint.position, groundCheckRadius, groundLayer);
         isGrounded = collider != null;
+
+        // 2. Catch the exact frame the jump key is pressed while on the ground
+        if (isGrounded && Keyboard.current.spaceKey.wasPressedThisFrame)
+        {
+            jumpRequested = true;
+        }
+
+        if (Keyboard.current.rightArrowKey.isPressed)
+        {
+            facingRight = true;
+        }
+        else if (Keyboard.current.leftArrowKey.isPressed)
+        {
+            facingRight = false;
+        }
+
+        AnimateCharacter();
     }
 
     private void FixedUpdate()
     {
-        float verticalVelocity = rb.linearVelocity.y;
-        if (isGrounded && Keyboard.current.spaceKey.isPressed)
+        // 3. Apply the jump force safely within the physics cycle
+        if (jumpRequested)
         {
+            // Reset the y-velocity first to prevent multiplying forces
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
             rb.AddForce(new Vector2(0f, jumpVelocity), ForceMode2D.Impulse);
+            
+            jumpRequested = false; // Reset the request
         }
+
+        // Horizontal Movement
         float horizontalVelocity = 0;
         if (Keyboard.current.rightArrowKey.isPressed)
         {
@@ -45,8 +80,41 @@ public class PlayerController : MonoBehaviour
         {
             horizontalVelocity -= walkSpeed;
         }
+        
         rb.linearVelocity = new Vector2(horizontalVelocity, rb.linearVelocity.y);
     }
+
+    private void AnimateCharacter()
+    {
+        if (!isGrounded)
+        {
+            spriteRenderer.sprite = facingRight ? jumpRightSprite : jumpLeftSprite;
+            return;
+        }
+
+        bool isMoving = Keyboard.current.rightArrowKey.isPressed || Keyboard.current.leftArrowKey.isPressed;
+        if (isMoving)
+        {
+            animationTimer += Time.deltaTime;
+            if (animationTimer >= frameRate)
+            {
+                animationTimer = 0f;
+                
+                int frameCount = facingRight ? runRightFrames.Length : runLeftFrames.Length;
+                if (frameCount > 0)
+                {
+                    currentFrameIndex = (currentFrameIndex + 1) % frameCount;
+                    spriteRenderer.sprite = facingRight ? runRightFrames[currentFrameIndex] : runLeftFrames[currentFrameIndex];
+                }
+            }
+            return;
+        }
+
+        spriteRenderer.sprite = facingRight ? idleRightSprite : idleLeftSprite;
+        currentFrameIndex = 0;
+    }
+
+
 
     private void OnDrawGizmosSelected()
     {
