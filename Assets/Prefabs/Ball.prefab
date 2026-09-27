@@ -13,8 +13,7 @@ GameObject:
   - component: {fileID: 7656315193938964269}
   - component: {fileID: 1629718185988752169}
   - component: {fileID: 6369558453499226764}
-  - component: {fileID: 9073657601363549404}
-  m_Layer: 10
+  m_Layer: 13
   m_Name: Ball
   m_TagString: Ball
   m_Icon: {fileID: 0}
@@ -171,23 +170,3 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f25067d61e8600f4486390b371d3d236, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BallController
---- !u!232 &9073657601363549404
-DistanceJoint2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3774647141692159985}
-  m_Enabled: 1
-  serializedVersion: 4
-  m_EnableCollision: 1
-  m_ConnectedRigidBody: {fileID: 0}
-  m_BreakForce: Infinity
-  m_BreakTorque: Infinity
-  m_BreakAction: 3
-  m_AutoConfigureConnectedAnchor: 0
-  m_Anchor: {x: 0, y: 0}
-  m_ConnectedAnchor: {x: 0, y: 0}
-  m_AutoConfigureDistance: 1
-  m_Distance: 3
-  m_MaxDistanceOnly: 1

@@ -7,6 +7,7 @@ public class GameManager : MonoBehaviour
     public static GameManager instance { get; private set; }
 
     [SerializeField] private GameObject gameOverPanel;
+    [SerializeField] private GameObject levelClearPanel;
 
     private void Awake()
     {
@@ -24,8 +25,18 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    public void LevelClear()
+    {
+        Time.timeScale = 0f;
+
+        if (levelClearPanel != null)
+        {
+            levelClearPanel.SetActive(true);
+        }
+    }
     public void AdvanceLevel()
     {
+        Time.timeScale = 1f;
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex + 1);
     }
 
@@ -34,11 +45,13 @@ public class GameManager : MonoBehaviour
         //Reset time scale
         Time.timeScale = 1f;
 
-        if (gameOverPanel != null)
-        {
-            gameOverPanel.SetActive(false);
-        }
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+
+    public void ReturnToTitle()
+    {
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(0);
     }
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -47,6 +60,10 @@ public class GameManager : MonoBehaviour
         if (gameOverPanel != null)
         {
             gameOverPanel.SetActive(false);
+        }
+        if (levelClearPanel != null)
+        {
+            levelClearPanel.SetActive(false);
         }
     }
 

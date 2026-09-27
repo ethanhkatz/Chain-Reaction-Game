@@ -99,7 +99,7 @@ public class PlayerController : MonoBehaviour
         }
         else if (other.CompareTag("Finish"))
         {
-            GameManager.instance.AdvanceLevel();
+            GameManager.instance.LevelClear();
         }
     }
 

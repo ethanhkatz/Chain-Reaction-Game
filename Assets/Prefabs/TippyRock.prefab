@@ -301,7 +301,7 @@ BoxCollider2D:
   m_Enabled: 1
   serializedVersion: 3
   m_Density: 1
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 6200000, guid: 021844533ce730b458fcb3a3f12dc640, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -349,6 +349,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a56d8b917328ff5499140088bbfd0797, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
+  ballHasHit: 0
 --- !u!233 &4058960200319976607
 HingeJoint2D:
   m_ObjectHideFlags: 0
