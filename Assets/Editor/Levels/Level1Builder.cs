@@ -162,6 +162,8 @@ public static class Level1Builder
         so.FindProperty("stage1Sprite").objectReferenceValue = Sprite("obj_rock_cracked_2");
         so.FindProperty("stage2Sprite").objectReferenceValue = Sprite("obj_rock_cracked_1");
         so.FindProperty("stairsSprite").objectReferenceValue = Sprite("obj_gray_stairs_cracked");
+        so.FindProperty("isStairs").boolValue = true;
+        so.FindProperty("matchSizeOnStairs").boolValue = true;
         so.ApplyModifiedPropertiesWithoutUndo();
 
     }
