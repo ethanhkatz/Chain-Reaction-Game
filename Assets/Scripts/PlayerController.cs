@@ -217,6 +217,7 @@ public class PlayerController : MonoBehaviour
     {
         isGrounded = Physics2D.OverlapBox(groundCheckPoint.position, groundCheckSize, 0f, groundLayer) != null
             || IsStandingOnSomething();
+        PassThroughBallAbove();
 
         if (isGrounded && Keyboard.current.spaceKey.wasPressedThisFrame)
         {
@@ -249,6 +250,23 @@ public class PlayerController : MonoBehaviour
         if (Keyboard.current.leftArrowKey.isPressed) { horizontalVelocity -= walkSpeed; }
 
         rb.linearVelocity = new Vector2(horizontalVelocity, rb.linearVelocity.y);
+    }
+
+    private Collider2D ballCollider;
+
+    // Jumping up into the ball when it rests on a ledge overhead used to bounce the player back down. Let the player
+    // pass through the ball while it is above them; at the same height it still collides so it can be shoved.
+    private void PassThroughBallAbove()
+    {
+        if (ballCollider == null)
+        {
+            var joint = GetComponent<DistanceJoint2D>();
+            if (joint == null || joint.connectedBody == null) return;
+            ballCollider = joint.connectedBody.GetComponent<Collider2D>();
+            if (ballCollider == null || bodyCollider == null) return;
+        }
+        bool above = ballCollider.bounds.center.y > bodyCollider.bounds.center.y + 0.8f;
+        Physics2D.IgnoreCollision(bodyCollider, ballCollider, above);
     }
 
     private readonly ContactPoint2D[] contacts = new ContactPoint2D[16];
