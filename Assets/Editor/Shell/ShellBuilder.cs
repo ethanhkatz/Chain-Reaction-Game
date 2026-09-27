@@ -40,6 +40,31 @@ public static class ShellBuilder
         return s;
     }
 
+    // Generated art in Assets/Art/Gen: make sure it imports as a single sprite before loading it.
+    static Sprite Gen(string name)
+    {
+        string path = "Assets/Art/Gen/" + name + ".png";
+        var imp = AssetImporter.GetAtPath(path) as TextureImporter;
+        if (imp == null) throw new System.Exception("missing art " + path);
+        if (imp.textureType != TextureImporterType.Sprite || imp.textureShape != TextureImporterShape.Texture2D || imp.spriteImportMode != SpriteImportMode.Single || !imp.alphaIsTransparency)
+        {
+            imp.textureType = TextureImporterType.Sprite;
+            imp.textureShape = TextureImporterShape.Texture2D;
+            imp.spriteImportMode = SpriteImportMode.Single;
+            imp.alphaIsTransparency = true;
+            imp.mipmapEnabled = false;
+            imp.SaveAndReimport();
+        }
+        var s = AssetDatabase.LoadAllAssetsAtPath(path).OfType<Sprite>().FirstOrDefault();
+        if (s == null)
+        {
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
+            s = AssetDatabase.LoadAllAssetsAtPath(path).OfType<Sprite>().FirstOrDefault();
+        }
+        if (s == null) throw new System.Exception("missing sprite " + path + " objs=" + string.Join(",", AssetDatabase.LoadAllAssetsAtPath(path).Select(o => o.GetType().Name)));
+        return s;
+    }
+
     static void BuildArt()
     {
         const string path = "Assets/Resources/ShellArt.asset";
@@ -48,6 +73,11 @@ public static class ShellBuilder
         art.idleFront1 = S("player_idle_front_1");
         art.idleFront2 = S("player_idle_front_2");
         art.buttonReturnTitle = S("ui_btn_returntitle_cyan");
+        art.sign = Gen("ui_sign_blank");
+        art.chainLink1 = S("obj_chain_link_1");
+        art.chainLink2 = S("obj_chain_link_2");
+        art.crash = S("fx_crash");
+        art.ballSkins = new[] { S("ball_big_happy_cyan"), S("ball_big_pink"), Gen("skin_ball_gold"), Gen("skin_ball_disco"), Gen("skin_ball_magma") };
         art.footsteps = Clip("sfx_footsteps_run.wav", false);
         art.jump = Clip("sfx_jump.wav", false);
         art.deathExplosion = Clip("sfx_death_explosion.wav", false);
@@ -240,6 +270,7 @@ public static class ShellBuilder
             AssetDatabase.ImportAsset(path);
             var imp = (TextureImporter)AssetImporter.GetAtPath(path);
             imp.textureType = TextureImporterType.Sprite;
+            imp.textureShape = TextureImporterShape.Texture2D;
             imp.spriteImportMode = SpriteImportMode.Single;
             imp.wrapMode = TextureWrapMode.Clamp;
             imp.SaveAndReimport();
