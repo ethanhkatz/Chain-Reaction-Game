@@ -5,7 +5,14 @@ using UnityEngine.SceneManagement;
 public class GameManager : MonoBehaviour
 {
     //Singleton pattern
-    public static GameManager instance { get; private set; }
+    // Falls back to a scene lookup: a script reload during Play Mode (domain reload disabled) clears statics without
+    // re-running Awake.
+    private static GameManager _instance;
+    public static GameManager instance
+    {
+        get { if (_instance == null) _instance = FindFirstObjectByType<GameManager>(); return _instance; }
+        private set => _instance = value;
+    }
 
     [SerializeField] private GameObject gameOverPanel;
     [SerializeField] private GameObject levelClearPanel;
