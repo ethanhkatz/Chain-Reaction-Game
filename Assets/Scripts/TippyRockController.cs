@@ -14,6 +14,8 @@ public class TippyRockController : MonoBehaviour
 
     void Start() 
     {
+        // Default to the Ground layer when the scene/prefab leaves the mask empty
+        if (groundLayer.value == 0) groundLayer = LayerMask.GetMask("Ground");
         rb = GetComponent<Rigidbody2D>();
         rb.constraints = RigidbodyConstraints2D.FreezePositionX | RigidbodyConstraints2D.FreezeRotation;
         originalGravityScale = rb.gravityScale;
@@ -52,6 +54,7 @@ public class TippyRockController : MonoBehaviour
     {
         if (ballHasHit) return; 
         ballHasHit = true;
+        ChainEvents.Report(transform.position, "domino");
         
         rb.constraints = RigidbodyConstraints2D.None; 
         

@@ -179,6 +179,15 @@ MonoBehaviour:
   walkSpeed: 5
   idleRightSprite: {fileID: 3410439384014351281, guid: 739e96012bb424ebd9cb2b759a7b6768, type: 3}
   idleLeftSprite: {fileID: -5776421600631150107, guid: 6463abb099cb143169514d09dec02e25, type: 3}
+  longIdleFrames:
+  - {fileID: 1366924316128212987, guid: de9d423aaa90540c5819f73a5e196efc, type: 3}
+  - {fileID: -4939954412240673511, guid: b2625bbdca27c4a9a92d0607b8f7d4bc, type: 3}
+  - {fileID: -453591459102112914, guid: de260bce9c0334995bd95d358cba08a7, type: 3}
+  - {fileID: 385429305935126283, guid: 7c74d986aee694360950be60eeb2d1b2, type: 3}
+  - {fileID: -5765124156893919946, guid: 5521c456bcd5d430782e08e693e04978, type: 3}
+  - {fileID: -2082710665843559231, guid: fa0c5391908e54846862bd909baa5bb2, type: 3}
+  - {fileID: -1584992684045630327, guid: c45d7d57373324891b3cc29d681e1017, type: 3}
+  - {fileID: 5645004092928384905, guid: d3c1a4ee8d442456491be6ec90295bbf, type: 3}
   jumpRightSprite: {fileID: -3111844534965987565, guid: f95f6ac406cd245e7aecdf940b9454d1, type: 3}
   jumpLeftSprite: {fileID: -3699261674952024947, guid: e299285d0fee64e959e5ec804465917a, type: 3}
   runRightFrames:
@@ -206,7 +215,7 @@ BoxCollider2D:
   m_Enabled: 1
   serializedVersion: 3
   m_Density: 1
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 6200000, guid: dcdaa0379a954aa2a17de5854bfeb7e1, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -260,5 +269,5 @@ DistanceJoint2D:
   m_Anchor: {x: 0, y: 0}
   m_ConnectedAnchor: {x: 0, y: 0}
   m_AutoConfigureDistance: 1
-  m_Distance: 3
+  m_Distance: 0.005
   m_MaxDistanceOnly: 1

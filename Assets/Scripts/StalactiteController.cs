@@ -1,92 +1,3 @@
-// using UnityEngine;
-
-// public class StalactiteController : MonoBehaviour
-// {
-//     [Header("Targeting")]
-//     [SerializeField] private string rockTag = "Rock"; 
-//     [SerializeField] private LayerMask detectionLayer;  
-//     [SerializeField] private string playerTag = "Player";
-
-//     [Header("Detection Settings")]
-//     [SerializeField] private float raycastWidth = 0.5f; 
-
-//     private GameObject targetObject; 
-//     private Rigidbody2D rb;
-//     private bool isFalling = false;
-
-//     void Start()
-//     {
-//         rb = GetComponent<Rigidbody2D>();
-//         rb.bodyType = RigidbodyType2D.Kinematic;
-//         rb.linearVelocity = Vector2.zero;
-
-//         // Finds your local target rock by tag automatically
-//         targetObject = GameObject.FindWithTag(rockTag);
-        
-//         if (targetObject == null)
-//         {
-//             Debug.LogError($"Stalactite could not find any object with the tag '{rockTag}'!");
-//         }
-//     }
-
-//     void Update()
-//     {
-//         if (isFalling) return;
-
-//         if (targetObject == null)
-//         {
-//             Fall();
-//             return;
-//         }
-
-//         CheckForPlayerInPath();
-//     }
-
-//     private void CheckForPlayerInPath()
-//     {
-//         Vector2 direction = targetObject.transform.position - transform.position;
-//         float distance = direction.magnitude;
-//         direction.Normalize();
-
-//         RaycastHit2D hit = Physics2D.CircleCast(transform.position, raycastWidth, direction, distance, detectionLayer);
-
-//         if (hit.collider != null && hit.collider.CompareTag(playerTag))
-//         {
-//             Fall();
-//         }
-//     }
-
-//     private void Fall()
-//     {
-//         isFalling = true;
-//         rb.bodyType = RigidbodyType2D.Dynamic;
-//     }
-
-//     private void OnCollisionEnter2D(Collision2D collision)
-//     {
-//         if (!isFalling) return;
-
-//         if (collision.gameObject.CompareTag(playerTag))
-//         {
-//             Destroy(collision.gameObject); 
-//             Destroy(gameObject); 
-//         }
-//         else if (collision.gameObject.CompareTag(rockTag))
-//         {
-//             Destroy(collision.gameObject);
-//             Destroy(gameObject);
-//         }
-//         else
-//         {
-//             Destroy(gameObject);
-//         }
-//     }
-
-//     private void OnBecameInvisible()
-//     {
-//         Destroy(gameObject);
-//     }
-// }
 using UnityEngine;
 
 public class StalactiteController : MonoBehaviour
@@ -95,6 +6,18 @@ public class StalactiteController : MonoBehaviour
     [SerializeField] private string rockTag = "Rock";
     [SerializeField] private LayerMask detectionLayer;
     [SerializeField] private string playerTag = "Player";
+    [Tooltip("Optional explicit target. If empty, the closest object tagged rockTag is used.")]
+    [SerializeField] private Transform target;
+    [Tooltip("If false and no target is assigned, ignore rockTag objects and just watch straight down.")]
+    [SerializeField] private bool findTargetByTag = true;
+    [Tooltip("If false, only a ball hit knocks it loose (player walking underneath is safe).")]
+    [SerializeField] private bool triggeredByPlayer = true;
+    [SerializeField] private string ballTag = "Ball";
+    [Tooltip("Fraction of the ball's velocity passed on when the ball knocks it loose.")]
+    [SerializeField] private float knockMomentum = 0.6f;
+    [Tooltip("When knocked loose by the ball, arc onto the target instead of just dropping.")]
+    [SerializeField] private bool aimAtTargetWhenKnocked = false;
+    [SerializeField] private float launchUpSpeed = 5f;
 
     [Header("Detection Settings")]
     [SerializeField] private float raycastWidth = 0.5f;
@@ -103,6 +26,7 @@ public class StalactiteController : MonoBehaviour
     private GameObject targetObject;
     private Rigidbody2D rb;
     private bool isFalling = false;
+    private bool hadTarget;
 
     void Start()
     {
@@ -110,43 +34,41 @@ public class StalactiteController : MonoBehaviour
         rb.bodyType = RigidbodyType2D.Kinematic;
         rb.linearVelocity = Vector2.zero;
 
-        // AUTOMATICALLY find the CLOSEST rock instead of a random global one
-        targetObject = FindClosestRock();
-
-        if (targetObject == null)
-        {
-            Debug.LogWarning($"{gameObject.name} could not find any nearby object with the tag {rockTag}!");
-        }
+        // Use the assigned target, otherwise the closest rock (not a random global one)
+        targetObject = target != null ? target.gameObject : findTargetByTag ? FindClosestRock() : null;
+        hadTarget = targetObject != null;
     }
 
     void Update()
     {
         if (isFalling) return;
 
-        // If its individual connected rock is destroyed, fall automatically
-        if (targetObject == null)
+        // The target was destroyed: nothing left to hold this one up
+        if (hadTarget && targetObject == null)
         {
             Fall();
             return;
         }
 
-        CheckForPlayerUnderneath();
+        if (triggeredByPlayer) CheckForPlayerInPath();
     }
 
-    private void CheckForPlayerUnderneath()
+    private void CheckForPlayerInPath()
     {
         // Casts a circle straight down from the stalactite's position
         RaycastHit2D hit = Physics2D.CircleCast(transform.position, raycastWidth, Vector2.down, detectionDistance, detectionLayer);
-        
+
         if (hit.collider != null && hit.collider.CompareTag(playerTag))
         {
             Fall();
         }
     }
 
-    private void Fall()
+    public void Fall()
     {
+        if (isFalling) return;
         isFalling = true;
+        ChainEvents.Report(transform.position, "stalactite");
         rb.bodyType = RigidbodyType2D.Dynamic;
     }
 
@@ -169,17 +91,52 @@ public class StalactiteController : MonoBehaviour
         return closest;
     }
 
+    // Horizontal launch that lands on top of the target
+    private Vector2 LaunchToward(GameObject t)
+    {
+        Vector2 aim = t.transform.position;
+        if (t.TryGetComponent(out Collider2D c)) aim = new Vector2(c.bounds.center.x, c.bounds.max.y);
+        float drop = Mathf.Max(0.5f, transform.position.y - aim.y);
+        float g = Mathf.Abs(Physics2D.gravity.y * rb.gravityScale);
+        // pop up first so it arcs over the player's head, then lands on the target
+        float time = (launchUpSpeed + Mathf.Sqrt(launchUpSpeed * launchUpSpeed + 2f * g * drop)) / g;
+        return new Vector2((aim.x - transform.position.x) / time, launchUpSpeed);
+    }
+
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (!isFalling) return;
+        if (!isFalling)
+        {
+            // A ball hit knocks it loose and carries some of the ball's momentum
+            if (collision.gameObject.CompareTag(ballTag))
+            {
+                Fall();
+                // let it fly free of the ball that knocked it
+                if (TryGetComponent(out Collider2D mine)) Physics2D.IgnoreCollision(mine, collision.collider);
+                if (aimAtTargetWhenKnocked && targetObject != null)
+                {
+                    rb.linearVelocity = LaunchToward(targetObject);
+                    // an aimed shot is yours: it flies past you (you're usually mid-jump right under it) onto the target
+                    if (mine != null)
+                        foreach (var p in GameObject.FindGameObjectsWithTag(playerTag))
+                            foreach (var pc in p.GetComponentsInChildren<Collider2D>()) Physics2D.IgnoreCollision(mine, pc);
+                }
+                else if (collision.rigidbody != null) rb.linearVelocity = collision.rigidbody.linearVelocity * knockMomentum;
+            }
+            return;
+        }
+
+        // The ball that knocked it loose keeps chasing it; don't shatter mid-air on it
+        if (collision.gameObject.CompareTag(ballTag)) return;
 
         if (collision.gameObject.CompareTag(playerTag))
         {
-            Destroy(collision.gameObject);
+            if (GameManager.instance != null) GameManager.instance.GameOver();
             Destroy(gameObject);
         }
         else if (collision.gameObject.CompareTag(rockTag))
         {
+            ChainEvents.Report(collision.transform.position, "smash");
             Destroy(collision.gameObject);
             Destroy(gameObject);
         }
@@ -191,6 +148,7 @@ public class StalactiteController : MonoBehaviour
 
     private void OnBecameInvisible()
     {
-        Destroy(gameObject);
+        // Only clean up stalactites that already fell; hanging ones must survive the camera panning away
+        if (isFalling) Destroy(gameObject);
     }
 }
