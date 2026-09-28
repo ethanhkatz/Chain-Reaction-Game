@@ -8,6 +8,18 @@ public class ShellArt : ScriptableObject
     public Sprite idleFront2;
     public Sprite buttonReturnTitle;
 
+    [Header("Level intro sign")]
+    public Sprite sign;
+    public Sprite chainLink1;
+    public Sprite chainLink2;
+    public Sprite crash;
+
+    [Header("Credits (full-screen team art)")]
+    public Sprite credits;
+
+    [Header("Ball skins (index = PlayerPrefs ballSkin)")]
+    public Sprite[] ballSkins;
+
     [Header("Team audio (Assets/Audio)")]
     public AudioClip footsteps;
     public AudioClip jump;

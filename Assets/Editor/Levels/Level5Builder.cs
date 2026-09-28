@@ -134,8 +134,7 @@ public static class Level5Builder
 
         // ---------- E: the climb to the exit ----------
         Solid("Floor_E", 60, -20, 106, 3.5f);
-        Solid("Ceiling_E", 58, 20, 106, 22, DarkGray);
-        Solid("Wall_Right", 103, -20, 106, 22, DarkGray);
+        Solid("Ceiling_E", 58, 20, 103, 22, DarkGray);
         CyanBlock("Step_1", 68.5f, 5.3f);
         CyanBlock("Step_2", 72.3f, 7.2f);
         Solid("Catwalk_1", 75.5f, 8.2f, 86f, 9f);
@@ -163,7 +162,7 @@ public static class Level5Builder
         var door = new GameObject("ExitDoor");
         door.transform.SetParent(root);
         door.tag = "Finish";
-        door.transform.position = new Vector3(99.5f, 9f + 2.55f, 0);
+        door.transform.position = new Vector3(146.5f, 9f + 2.55f, 0);
         door.transform.localScale = Vector3.one * 0.5f;
         var dsr = door.AddComponent<SpriteRenderer>();
         dsr.sprite = S("obj_exit_door_glow");
@@ -171,7 +170,9 @@ public static class Level5Builder
         var dcol = door.AddComponent<BoxCollider2D>();
         dcol.isTrigger = true;
         dcol.size = new Vector2(dsr.sprite.bounds.size.x * 0.6f, dsr.sprite.bounds.size.y * 0.9f);
-        Deco("Exit_Glow", S("fx_crash"), new Vector2(99.5f, 11.5f), 0.35f, new Color(1, 1, 1, 0.12f), -3);
+        Deco("Exit_Glow", S("fx_crash"), new Vector2(146.5f, 11.5f), 0.35f, new Color(1, 1, 1, 0.12f), -3);
+
+        BuildWardenArena();
 
         // ---------- spawn ----------
         var player = GameObject.Find("Player");
@@ -189,6 +190,229 @@ public static class Level5Builder
         cmFollow.transform.position = new Vector3(sx, sy, cmFollow.transform.position.z);
         var mc = GameObject.Find("Main Camera");
         mc.transform.position = new Vector3(sx, sy, mc.transform.position.z);
+    }
+
+    // ---------- F: the Warden's arena (floor y=9, ceiling y=22.5) ----------
+    // Three cyan cores, each cracked by a chain reaction, never by the ball directly:
+    //   head     - ball onto the ledge button -> the ceiling stalactite drops on it
+    //   shoulder - ball smashes the anchor post -> the cable snaps and the crusher drops on it
+    //   knee     - ball topples the domino into it
+    static void BuildWardenArena()
+    {
+        Solid("Arena_Floor", 103, -20, 150, 9);
+        Solid("Arena_Lintel", 102, 20, 104, 22.5f, DarkGray);
+        Solid("Arena_Ceiling", 102, 22.5f, 153, 25, DarkGray);
+        Solid("Wall_Right", 150, -20, 153, 25, DarkGray);
+        Solid("Boss_Ledge", 107, 9, 113, 10.5f);
+
+        var cp = new GameObject("BossCheckpoint");
+        cp.transform.SetParent(root);
+        cp.transform.position = new Vector3(102.5f, 14f, 0);
+        var cpc = cp.AddComponent<BoxCollider2D>();
+        cpc.isTrigger = true;
+        cpc.size = new Vector2(1f, 10f);
+        cp.AddComponent<BossCheckpoint>().spawn = new Vector2(100f, 10.7f);
+
+        var bossGo = new GameObject("Warden");
+        bossGo.transform.SetParent(root);
+        var boss = bossGo.AddComponent<WardenBoss>();
+        // All Warden art is loaded by path from Assets/Art/Boss (catalog stand-ins until it lands) and sized by a
+        // target world height, so the images can be swapped without touching code. Everything else - cores,
+        // colliders, crusher, stalactite, domino - is placed from fractions of the body sprite's rect.
+        var bodySprite = BossArt("warden_body", "obj_rock_cracked_1");
+        var bodyRect = new Rect(130f, 9f, 0, 10f); // left, floor, width from aspect, target height
+        bodyRect.width = bodyRect.height * bodySprite.bounds.size.x / bodySprite.bounds.size.y;
+        var body = new GameObject("Warden_Body").transform;
+        body.SetParent(bossGo.transform);
+        body.position = new Vector3(bodyRect.center.x, bodyRect.y, 0);
+        var bodyArt = Deco("Warden_Body_Art", bodySprite, bodyRect.center, bodyRect.height / bodySprite.bounds.size.y,
+            bodySprite == S("obj_rock_cracked_1") ? new Color(0.55f, 0.55f, 0.58f) : Color.white, -4);
+        bodyArt.transform.SetParent(body, true);
+        // collision silhouette traced from warden_body.png (fractions: x from left, y from bottom)
+        BodyBox(body, "Legs", bodyRect, 0.15f, 0f, 0.85f, 0.38f);
+        BodyBox(body, "Arms", bodyRect, 0.02f, 0.38f, 0.98f, 0.62f);
+        BodyBox(body, "Chest", bodyRect, 0.08f, 0.62f, 0.90f, 0.87f);
+        BodyBox(body, "Head", bodyRect, 0.37f, 0.87f, 0.62f, 0.99f);
+
+        // slam arm: pivots at the left shoulder, laid over the drawn arm; it swings up to telegraph a slam
+        var armSprite = BossArt("warden_arm", "haz_stalactite_gray");
+        var armPivot = new GameObject("Warden_ArmPivot").transform;
+        armPivot.SetParent(body);
+        armPivot.position = BodyPoint(bodyRect, 0.15f, 0.82f);
+        float armH = 0.46f * bodyRect.height;
+        var arm = Deco("Warden_Arm", armSprite, (Vector2)armPivot.position + Vector2.down * armH / 2, armH / armSprite.bounds.size.y,
+            armSprite == S("haz_stalactite_gray") ? Orange : Color.white, -3);
+        arm.transform.SetParent(armPivot, true);
+        var tower = armPivot;
+        var eye = Deco("Warden_Eye", S("ball_small_a"), BodyPoint(bodyRect, 0.47f, 0.905f), 0.07f, new Color(1f, 0.45f, 0.8f, 0.9f), -2); // a glint on the visor; flares white before a sweep
+        eye.transform.SetParent(body, true);
+        Chain(new Vector2(bodyRect.x + bodyRect.width * 0.8f, 22.5f), 2);
+
+        // cores sit in the three chest sockets
+        var coreSprite = BossArt("warden_core", "obj_cyan_block_small");
+        var coreBroken = BossArt("warden_core_broken", "obj_cyan_block_small");
+        float coreSize = 0.74f;
+        Vector2 topAt = BodyPoint(bodyRect, 0.564f, 0.759f), leftAt = BodyPoint(bodyRect, 0.451f, 0.675f), rightAt = BodyPoint(bodyRect, 0.658f, 0.661f);
+        var coreTop = Core(body, "Core_Top", topAt, coreSize, coreSprite, coreBroken, boss);
+        var coreLeft = Core(body, "Core_Left", leftAt, coreSize, coreSprite, coreBroken, boss);
+        var coreRight = Core(body, "Core_Right", rightAt, coreSize, coreSprite, coreBroken, boss);
+
+        // setup 1 (top socket): ball onto the ledge button -> the ceiling stalactite drops and arcs into it
+        var setup1 = new GameObject("Setup_1_Stalactite").transform;
+        setup1.SetParent(root);
+        var stal = Deco("Warden_Stalactite", S("haz_stalactite_cyan"), new Vector2(topAt.x - 1.2f, 21.6f), 0.6f, Color.white, 2);
+        stal.transform.SetParent(setup1, true);
+        var srb = stal.AddComponent<Rigidbody2D>();
+        srb.mass = 2f;
+        var scol = stal.AddComponent<BoxCollider2D>();
+        scol.size = new Vector2(1.0f, 2.0f);
+        var dropper = stal.AddComponent<WardenDropper>();
+        dropper.target = coreTop.transform;
+        dropper.arc = 0.4f;
+        dropper.time = 0.6f;
+        stal.AddComponent<WardenStriker>().consumeOnHit = true;
+        var btn = Button("Button_Warden", 110f, 10.5f, dropper);
+        btn.transform.SetParent(setup1, true);
+        var bbc = btn.GetComponent<BoxCollider2D>(); // tall catch zone: the ball dragged or swung across the ledge presses it
+        bbc.size = new Vector2(bbc.size.x * 1.6f, bbc.size.y * 2.5f);
+        bbc.offset = new Vector2(0, bbc.size.y * 0.3f);
+
+        // setup 2 (lower-left socket): smash the anchor post -> the cable snaps and the crusher swings into it
+        var setup2 = new GameObject("Setup_2_Crusher").transform;
+        setup2.SetParent(root);
+        float crusherX = bodyRect.x - 2.5f;
+        var crusher = Deco("Warden_Crusher", S("obj_cyan_block_small"), new Vector2(crusherX, 18.9f), 1.0f, Color.white, 1);
+        crusher.transform.SetParent(setup2, true);
+        var crb = crusher.AddComponent<Rigidbody2D>();
+        crb.bodyType = RigidbodyType2D.Kinematic;
+        crusher.AddComponent<BoxCollider2D>().size = S("obj_cyan_block_small").bounds.size * 0.9f;
+        var fp = crusher.AddComponent<FallingPlatform>(); // BreakableSupport needs one; the rope's launch overrides the fall
+        crusher.AddComponent<WardenStriker>().consumeOnHit = true;
+
+        var post = Deco("Anchor_Post", S("obj_cyan_pillar"), new Vector2(118f, 9f + 1.5f), 0.5f, Color.white, 1);
+        post.transform.SetParent(setup2, true);
+        post.layer = LayerMask.NameToLayer("Ground");
+        var pcol = post.AddComponent<BoxCollider2D>();
+        pcol.size = S("obj_cyan_pillar").bounds.size * 0.9f;
+        var sup = post.AddComponent<BreakableSupport>();
+        var sso = new SerializedObject(sup);
+        sso.FindProperty("platform").objectReferenceValue = fp;
+        sso.ApplyModifiedPropertiesWithoutUndo();
+        var rope = new GameObject("Crusher_Cable");
+        rope.transform.SetParent(setup2);
+        var wr = rope.AddComponent<WardenRope>();
+        wr.support = sup;
+        wr.payload = crusher.GetComponent<WardenStriker>();
+        wr.target = coreLeft.transform;
+        Cable(rope.transform, new Vector2(118f, 12f), new Vector2(118f, 22.3f));
+        Cable(rope.transform, new Vector2(118f, 22.3f), new Vector2(crusherX, 22.3f));
+        Cable(rope.transform, new Vector2(crusherX, 22.3f), new Vector2(crusherX, 19.3f));
+        Deco("Pulley", S("ball_small_b"), new Vector2(118f, 22.2f), 0.12f, Gray, 0).transform.SetParent(rope.transform, true);
+        Deco("Pulley", S("ball_small_b"), new Vector2(crusherX, 22.2f), 0.12f, Gray, 0).transform.SetParent(rope.transform, true);
+
+        // setup 3 (lower-right socket): the ball tips the domino onto a spring plate, which flings it into the socket
+        var setup3 = new GameObject("Setup_3_Domino").transform;
+        setup3.SetParent(root);
+        var dom = Prefab("Assets/Prefabs/TippyRock.prefab", new Vector2(bodyRect.x - 5f, 9f + 2.63f));
+        dom.transform.SetParent(setup3, true);
+        dom.name = "Warden_Domino";
+        dom.layer = LayerMask.NameToLayer("Ground");
+        foreach (var sr in dom.GetComponentsInChildren<SpriteRenderer>()) sr.color = Cyan;
+        var ds = dom.AddComponent<WardenStriker>();
+        ds.respawnIfWasted = true;
+        ds.ignorePlayer = true; // walk past it and the trailing ball knocks it over
+        ds.consumeOnHit = true;
+        ds.flingTo = coreRight.transform;
+        Deco("Spring_Plate", S("obj_cyan_platform"), new Vector2(bodyRect.x - 5f, 9.1f), 0.12f, Orange, 0).transform.SetParent(setup3, true);
+        setup2.gameObject.SetActive(false);
+        setup3.gameObject.SetActive(false);
+
+        // HP pips
+        var pips = new SpriteRenderer[3];
+        for (int i = 0; i < 3; i++)
+        {
+            var pip = Deco("Warden_Pip_" + (i + 1), S("obj_cyan_block_small"), new Vector2(bodyRect.center.x - 0.9f + i * 0.9f, bodyRect.yMax + 1.3f), 0.28f, Color.white, 4);
+            pip.transform.SetParent(body, true);
+            pips[i] = pip.GetComponent<SpriteRenderer>();
+        }
+
+        var exitGate = LaserGate("Gate_Exit", Mathf.Max(144f, bodyRect.xMax + 1.5f), 9f, 22.5f);
+
+        var so = new SerializedObject(boss);
+        var cores = so.FindProperty("cores");
+        cores.arraySize = 3;
+        cores.GetArrayElementAtIndex(0).objectReferenceValue = coreTop;
+        cores.GetArrayElementAtIndex(1).objectReferenceValue = coreLeft;
+        cores.GetArrayElementAtIndex(2).objectReferenceValue = coreRight;
+        var setups = so.FindProperty("setups");
+        setups.arraySize = 3;
+        setups.GetArrayElementAtIndex(0).objectReferenceValue = setup1.gameObject;
+        setups.GetArrayElementAtIndex(1).objectReferenceValue = setup2.gameObject;
+        setups.GetArrayElementAtIndex(2).objectReferenceValue = setup3.gameObject;
+        var pp = so.FindProperty("pips");
+        pp.arraySize = 3;
+        for (int i = 0; i < 3; i++) pp.GetArrayElementAtIndex(i).objectReferenceValue = pips[i];
+        so.FindProperty("body").objectReferenceValue = body;
+        so.FindProperty("tower").objectReferenceValue = tower;
+        so.FindProperty("bodyArt").objectReferenceValue = bodyArt.GetComponent<SpriteRenderer>();
+        so.FindProperty("defeatedSprite").objectReferenceValue = BossArt("warden_defeated", "obj_gray_stairs_cracked");
+        so.FindProperty("laserStartX").floatValue = bodyRect.x + 0.3f;
+        so.FindProperty("arenaMaxX").floatValue = bodyRect.x - 0.5f;
+        so.FindProperty("eye").objectReferenceValue = eye.GetComponent<SpriteRenderer>();
+        so.FindProperty("exitGate").objectReferenceValue = exitGate;
+        so.FindProperty("ledgeX").vector2Value = new Vector2(107, 113);
+        so.FindProperty("ledgeTop").floatValue = 10.5f;
+        so.FindProperty("shardSprite").objectReferenceValue = S("haz_stalactite_gray");
+        so.FindProperty("warnSprite").objectReferenceValue = FirstSprite("Assets/Images/Ground.png");
+        so.FindProperty("laserSprite").objectReferenceValue = S("haz_laser_gate_2");
+        so.FindProperty("crashSprite").objectReferenceValue = S("fx_crash");
+        so.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+
+    static Sprite BossArt(string file, string fallback)
+    {
+        var sp = AssetDatabase.LoadAllAssetsAtPath("Assets/Art/Boss/" + file + ".png").OfType<Sprite>().FirstOrDefault();
+        return sp != null ? sp : S(fallback);
+    }
+
+    static Vector2 BodyPoint(Rect r, float fx, float fy) => new Vector2(r.x + r.width * fx, r.y + r.height * fy);
+
+    static void BodyBox(Transform parent, string name, Rect r, float fx0, float fy0, float fx1, float fy1)
+    {
+        var go = new GameObject("Warden_" + name);
+        go.transform.SetParent(parent, true);
+        Vector2 a = BodyPoint(r, fx0, fy0), b = BodyPoint(r, fx1, fy1);
+        go.transform.position = (a + b) / 2;
+        go.AddComponent<BoxCollider2D>().size = b - a;
+    }
+
+    static WardenCore Core(Transform parent, string name, Vector2 pos, float size, Sprite sprite, Sprite broken, WardenBoss boss)
+    {
+        var go = Deco(name, sprite, pos, size / sprite.bounds.size.y, Color.white, -1);
+        go.transform.SetParent(parent, true);
+        var bc = go.AddComponent<BoxCollider2D>();
+        bc.size = sprite.bounds.size * 0.9f;
+        var core = go.AddComponent<WardenCore>();
+        core.boss = boss;
+        core.crackFx = S("fx_crash");
+        core.brokenSprite = broken;
+        return core;
+    }
+
+    static void Cable(Transform parent, Vector2 a, Vector2 b)
+    {
+        var go = new GameObject("Cable");
+        go.transform.SetParent(parent);
+        go.transform.position = (a + b) / 2;
+        var sr = go.AddComponent<SpriteRenderer>();
+        sr.sprite = FirstSprite("Assets/Images/Ground.png");
+        sr.drawMode = SpriteDrawMode.Tiled;
+        var d = b - a; // drawn as a horizontal strip rotated into place (the tile only reads along its width)
+        sr.size = new Vector2(Mathf.Max(d.magnitude, 0.14f), 0.14f);
+        go.transform.rotation = Quaternion.Euler(0, 0, Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg);
+        sr.color = new Color(0.32f, 0.33f, 0.37f);
+        sr.sortingOrder = -2;
     }
 
     // ---------------- helpers ----------------

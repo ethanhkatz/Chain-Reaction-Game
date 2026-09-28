@@ -35,6 +35,7 @@ public class FallingPlatform : MonoBehaviour
     {
         if (released) return;
         released = true;
+        ChainEvents.Report(transform.position, "platform");
         // Every other support holding this platform gives way too.
         foreach (var s in FindObjectsByType<BreakableSupport>(FindObjectsSortMode.None))
             if (s.GetPlatform() == this) s.Break();
@@ -77,6 +78,7 @@ public class FallingPlatform : MonoBehaviour
         if (mode == Mode.Drop && released && !impacted && collision.relativeVelocity.magnitude > 3f)
         {
             impacted = true;
+            ChainEvents.Report(transform.position, "slam");
             StartCoroutine(Impact());
         }
     }

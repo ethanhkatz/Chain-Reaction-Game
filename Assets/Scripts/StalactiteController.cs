@@ -68,6 +68,7 @@ public class StalactiteController : MonoBehaviour
     {
         if (isFalling) return;
         isFalling = true;
+        ChainEvents.Report(transform.position, "stalactite");
         rb.bodyType = RigidbodyType2D.Dynamic;
     }
 
@@ -112,7 +113,14 @@ public class StalactiteController : MonoBehaviour
                 Fall();
                 // let it fly free of the ball that knocked it
                 if (TryGetComponent(out Collider2D mine)) Physics2D.IgnoreCollision(mine, collision.collider);
-                if (aimAtTargetWhenKnocked && targetObject != null) rb.linearVelocity = LaunchToward(targetObject);
+                if (aimAtTargetWhenKnocked && targetObject != null)
+                {
+                    rb.linearVelocity = LaunchToward(targetObject);
+                    // an aimed shot is yours: it flies past you (you're usually mid-jump right under it) onto the target
+                    if (mine != null)
+                        foreach (var p in GameObject.FindGameObjectsWithTag(playerTag))
+                            foreach (var pc in p.GetComponentsInChildren<Collider2D>()) Physics2D.IgnoreCollision(mine, pc);
+                }
                 else if (collision.rigidbody != null) rb.linearVelocity = collision.rigidbody.linearVelocity * knockMomentum;
             }
             return;
@@ -128,6 +136,7 @@ public class StalactiteController : MonoBehaviour
         }
         else if (collision.gameObject.CompareTag(rockTag))
         {
+            ChainEvents.Report(collision.transform.position, "smash");
             Destroy(collision.gameObject);
             Destroy(gameObject);
         }

@@ -47,6 +47,7 @@ public class SplittingRock : MonoBehaviour
     {
         if (split) return;
         split = true;
+        ChainEvents.Report(transform.position, "split");
         StopAllCoroutines();
         var sr = GetComponent<SpriteRenderer>();
         foreach (var c in GetComponentsInChildren<Collider2D>()) c.enabled = false;

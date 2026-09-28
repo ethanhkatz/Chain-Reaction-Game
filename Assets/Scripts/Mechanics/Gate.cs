@@ -14,6 +14,7 @@ public class Gate : MonoBehaviour, IActivatable
     {
         if (open) return;
         open = true;
+        ChainEvents.Report(transform.position, "gate");
         foreach (var c in GetComponentsInChildren<Collider2D>()) c.enabled = false;
         StartCoroutine(Open());
     }

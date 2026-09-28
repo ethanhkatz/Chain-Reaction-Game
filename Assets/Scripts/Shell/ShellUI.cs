@@ -87,4 +87,25 @@ public static class ShellUI
         if (Object.FindAnyObjectByType<EventSystem>() != null) return;
         var go = new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
     }
+
+    // Comic-style button: dark ink-bordered box with a pink misprint shadow and outlined cyan lettering.
+    public static Button ComicButton(Transform parent, string label, Vector2 anchor, Vector2 pos, Vector2 size, UnityEngine.Events.UnityAction onClick, float fontSize = 44f)
+    {
+        var root = ComicUI.Panel(parent, anchor, pos, size, ComicUI.Charcoal);
+        root.name = "Button " + label;
+        var face = root.Find("Face").GetComponent<Image>();
+        face.raycastTarget = true;
+        var b = root.gameObject.AddComponent<Button>();
+        b.targetGraphic = face;
+        var colors = b.colors;
+        colors.highlightedColor = new Color(1.9f, 1.9f, 2.1f);
+        colors.selectedColor = new Color(1.9f, 1.9f, 2.1f);
+        colors.pressedColor = new Color(0.7f, 0.7f, 0.7f);
+        b.colors = colors;
+        if (onClick != null) b.onClick.AddListener(onClick);
+        var t = ComicUI.Text(root, label, fontSize, new Vector2(0.5f, 0.5f), new Vector2(0, 2), size, ComicUI.Cyan, new Color(0.878f, 0.271f, 0.482f), 4f);
+        t.root.name = "Label";
+        root.gameObject.AddComponent<ButtonFx>();
+        return b;
+    }
 }

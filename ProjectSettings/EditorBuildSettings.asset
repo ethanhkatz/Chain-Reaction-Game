@@ -26,5 +26,8 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/EndingScene.unity
     guid: e01fd4657b3ce1446a547ace4f282d11
+  - enabled: 1
+    path: Assets/Scenes/YardBreak.unity
+    guid: bf2ac9f884eaa4298b50928b70a27f88
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
