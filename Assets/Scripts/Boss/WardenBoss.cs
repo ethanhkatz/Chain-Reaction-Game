@@ -181,13 +181,14 @@ public class WardenBoss : MonoBehaviour
         for (float t = 0; t < tel; t += Time.deltaTime)
         {
             if (dead) { Destroy(line.gameObject); yield break; }
+            if (line == null) break;
             float k = t / tel;
             bool on = Mathf.Repeat(t * (5f + 7f * k), 1f) < 0.5f;
             line.color = new Color(1f, 0.55f, 0.18f, on ? 0.8f : 0.15f);
             if (eye != null) eye.color = Color.Lerp(eyeBase, Color.white, on ? k : 0);
             yield return null;
         }
-        Destroy(line.gameObject);
+        if (line != null) Destroy(line.gameObject);
         if (eye != null) eye.color = eyeBase;
         float h = 1.3f;
         float sy = h / laserSprite.bounds.size.y;
